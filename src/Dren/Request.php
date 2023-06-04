@@ -44,16 +44,11 @@ class Request
         return $this->postData;
     }
 
-//    public function getRequestData() : object
-//    {
-//
-//    }
-
     public function getCookie(string $name) : ?string
     {
-        if(isset($this->cookies[$name])){
+        if(isset($this->cookies[$name]))
             return $this->cookies[$name];
-        }
+
         return null;
     }
 
@@ -64,7 +59,7 @@ class Request
 
     private function setReferrer() : void
     {
-        $this->referrer = isset($_SERVER['HTTP_REFERER']) ? $_SERVER['HTTP_REFERER'] : '';
+        $this->referrer = $_SERVER['HTTP_REFERER'] ?? '';
     }
 
     private function setCookies() : void
@@ -74,14 +69,12 @@ class Request
 
     private function setMethod() : void
     {
-        $this->method = isset($_SERVER['REQUEST_METHOD'])
-            ? $_SERVER['REQUEST_METHOD'] : NULL;
+        $this->method = $_SERVER['REQUEST_METHOD'] ?? NULL;
     }
 
     private function setURI() : void
     {
-        $this->uri = isset($_SERVER['REQUEST_URI'])
-            ? strtok($_SERVER["REQUEST_URI"],'?') : NULL;
+        $this->uri = isset($_SERVER['REQUEST_URI']) ? strtok($_SERVER["REQUEST_URI"],'?') : NULL;
     }
 
     private function setGetData() : void

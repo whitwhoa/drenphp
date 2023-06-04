@@ -13,10 +13,14 @@ class Response
     private $body;
     private $redirect;
     private $type;
+    private $sessionManager = null;
 
     public function __construct()
     {
-
+        // classes extending controller only ever called in App::execute() after initialization has completed, so
+        // safe to use singleton here to prime these values
+        if(App::get()->getConfig()->session->enabled)
+            $this->sessionManager = App::get()->getSessionManager();
     }
 
     public function redirect(string $redirect) : Response
@@ -43,12 +47,11 @@ class Response
 
     public function send() : void
     {
+        if($this->sessionManager)
+            $this->sessionManager->persist();
 
-        if(App::$config->session->enabled){
-            App::$sm->persist();
-        }
-
-        if($this->redirect){
+        if($this->redirect)
+        {
             http_response_code(302);
             header('Location: ' . $this->redirect);
         }
@@ -57,10 +60,6 @@ class Response
         header('Content-Type: ' . $this->type);
         echo $this->body;
         //exit;
-
     }
-
-
-
 
 }

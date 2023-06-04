@@ -10,11 +10,11 @@ use RecursiveIteratorIterator;
 
 class ViewCompiler
 {
+    private $views = [];
+    private $sessionManager;
 
-    private $views = null;
 
-
-    public function __construct($privateDir)
+    public function __construct($privateDir, $sessionManager)
     {
         foreach (new RecursiveIteratorIterator(new RecursiveDirectoryIterator($privateDir . '/views')) as $file) 
         {
@@ -35,6 +35,8 @@ class ViewCompiler
                 )
             ] = $path;
         }
+
+        $this->sessionManager = $sessionManager;
     }
 
 
@@ -51,8 +53,8 @@ class ViewCompiler
         if(!array_key_exists($view, $this->views))
             throw new \Exception('Given view name does not exist');
 
-        $data['errors'] = (App::get()->getSessionManager() && App::get()->getSessionManager()->get('errors')) ? App::get()->getSessionManager()->get('errors') : NULL;
-        $data['old'] = (App::get()->getSessionManager() && App::get()->getSessionManager()->get('old')) ? App::get()->getSessionManager()->get('old') : NULL;
+        $data['errors'] = ($this->sessionManager && $this->sessionManager->get('errors')) ? $this->sessionManager->get('errors') : NULL;
+        $data['old'] = ($this->sessionManager && $this->sessionManager->get('old')) ? $this->sessionManager->get('old') : NULL;
 
         extract($data);
 

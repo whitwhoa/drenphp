@@ -59,7 +59,7 @@ class App
         }
 
         // Initialize view compiler
-        $this->viewCompiler = new ViewCompiler($privateDir);
+        $this->viewCompiler = new ViewCompiler($privateDir, $this->sessionManager);
 
         // Initialize router
         $this->router = new Router($privateDir, $this->request->getURI());
@@ -76,13 +76,16 @@ class App
      */
     private function injectPrivateDirIntoConfig() : void
     {
-        if(isset($this->config->session) && isset($this->config->session->directory))
+        if(isset($this->config->session->directory))
             $this->config->session->directory = $this->privateDir . $this->config->session->directory;
     }
 
     public function execute()
     {
         try{
+
+            // Load routes, either from files or cache file
+            $this->router->generateRoutes();
 
             // Execute each middleware. If the return type is Dren\Response, send the response
             foreach($this->router->getMiddleware() as $m)
@@ -95,7 +98,6 @@ class App
                     return;
                 }
             }
-
 
             // Execute request validator. If provided and validate() returns false,
             // return a redirect or json response depending on the set failureResponseType
@@ -117,25 +119,23 @@ class App
                 }
             }
 
-
-            // Execute the given method for the given controller class and send it's
+            // Execute the given method for the given controller class and send its
             // response (as every controller method should return a Response object)
             $class = $this->router->getControllerClassName();
             $method = $this->router->getControllerClassMethodName();
-            (new $class($this->request))->$method()->send();
+            (new $class())->$method()->send();
 
         }
-        catch(Forbidden|NotFound|Unauthorized|UnprocessableEntity $e){
-
+        catch(Forbidden|NotFound|Unauthorized|UnprocessableEntity $e)
+        {
             (new Response())->html($this->viewCompiler->compile('errors.' . $e->getCode(),
                 ['detailedMessage' => $e->getMessage()]))->send();
-
         }
         // catch (Exception $e){
 
         //     // had code here to display caught exception, but at this point it doesn't matter
         //     // because if the 'display_errors' parameter was set to true we'd display it in the browser
-        //     // otherwise it would be written to log...where as if we just don't do anything here and default
+        //     // otherwise it would be written to log...whereas if we just don't do anything here and default
         //     // to using the predefined php ini error reporting functions within boostrap file it will have the
         //     // same effect.
 

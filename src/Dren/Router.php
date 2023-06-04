@@ -27,9 +27,7 @@ class Router
     private $requestValidator = '';
 
     /**
-     * Router constructor.
      *
-     * @throws NotFound
      */
     public function __construct($privateDir, $requestURI)
     {
@@ -37,7 +35,7 @@ class Router
         $this->privateDir = $privateDir;
         $this->requestURI = $requestURI;
 
-        $this->generateRoutesFromFiles();
+        //$this->generateRoutesFromFiles();
     }
 
     public function getControllerClassName() : string
@@ -86,7 +84,7 @@ class Router
     /**
      * @throws NotFound
      */
-    private function generateRoutesFromFiles() : void
+    public function generateRoutes() : void
     {
 
         // if cache/routes.php does not exist, create it. cache directory should be wiped every time
@@ -100,7 +98,6 @@ class Router
                     $this->routes = array_merge($this->routes, require_once $filename);
 
             file_put_contents($this->privateDir . '/cache/routes.php', serialize($this->routes));
-
         } 
         else 
         {
