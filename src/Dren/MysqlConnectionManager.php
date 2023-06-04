@@ -4,9 +4,9 @@
 namespace Dren;
 
 
-use Dren\App;
+use Dren\MySQLCon;
 
-// TODO: this is broken until we bring in mysql class to this package instead of pulling from my github repo for simple-mysql
+
 
 /**
  * Database connection manager
@@ -21,9 +21,9 @@ class MysqlConnectionManager
     private $connections = [];
 
 
-    public function __construct()
+    public function __construct($databaseConfig)
     {
-        $this->config = App::$config->databases;
+        $this->config = $databaseConfig;
     }
 
     /**
@@ -35,9 +35,9 @@ class MysqlConnectionManager
      */
     public function get(string $dbName = null) : MySQLCon
     {
-        if(!$dbName){
+        if(!$dbName)
             return $this->genCon($this->config[0]['db']);
-        }
+        
         return $this->genCon($dbName);
     }
 
@@ -51,15 +51,14 @@ class MysqlConnectionManager
      */
     private function genCon(string $db) : MySQLCon
     {
-        if(in_array($db, $this->connections)){
+        if(in_array($db, $this->connections))
             return $this->connections[$db];
-        }
 
         $con = new MySQLCon(((function() use($db){
-            foreach($this->config as $con){
-                if($con['db'] === $db){
+            foreach($this->config as $con)
+            {
+                if($con['db'] === $db)
                     return [$con['host'], $con['user'], $con['pass'], $con['db']];
-                }
             }
             throw new \Exception('Given database name does not exist within configuration file');
         })()), true);

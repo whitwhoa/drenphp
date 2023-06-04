@@ -19,12 +19,13 @@ class SessionManager
     private $flashed = null;
 
 
-    public function __construct()
+    public function __construct($sessionConfig, $token)
     {
-        $this->config = App::$config->session;
-        $this->token = App::$request->getCookie(App::$config->session->name);
+        $this->config = $sessionConfig;
+        $this->token = $token;
 
-        if(!$this->token){
+        if(!$this->token)
+        {
             $this->startSession();
             return;
         }
@@ -51,15 +52,19 @@ class SessionManager
     public function regenerate(bool $keepData = false, int $userId = null) : void
     {
         setcookie($this->token, '', time() - 3600, '/');
-        switch($this->config->type){
+
+        switch($this->config->type)
+        {
             case 'file':
             default:
                 unlink($this->config->directory . '/' . $this->token);
         }
+
         $this->token = null;
-        if(!$keepData){
+
+        if(!$keepData)
             $this->session->data = null;
-        }
+        
         $this->startSession($userId);
     }
 
@@ -79,12 +84,12 @@ class SessionManager
      */
     public function get(string $key)
     {
-        if(isset($this->flashed->$key)){
+        if(isset($this->flashed->$key))
             return $this->flashed->$key;
-        }
-        if(isset($this->session->data->$key)){
+        
+        if(isset($this->session->data->$key))
             return $this->session->data->$key;
-        }
+        
         return null;
     }
 
@@ -116,7 +121,8 @@ class SessionManager
      */
     public function persist() : void
     {
-        switch($this->config->type){
+        switch($this->config->type)
+        {
             case 'file':
             default:
                 file_put_contents($this->config->directory . '/' . $this->token, json_encode($this->session));
@@ -137,7 +143,8 @@ class SessionManager
      */
     private function loadSession() : void
     {
-        switch($this->config->type){
+        switch($this->config->type)
+        {
             case 'file':
             default:
                 $this->loadFileSession();
@@ -154,13 +161,17 @@ class SessionManager
      */
     private function loadFileSession() : void
     {
-        if(!file_exists($this->config->directory . '/' . $this->token)){
+        if(!file_exists($this->config->directory . '/' . $this->token))
+        {
             $this->regenerate();
             return;
         }
         $this->session = json_decode(file_get_contents($this->config->directory . '/' . $this->token));
+
         $this->session->last_active = time();
+
         $this->flashed = $this->session->flash;
+
         $this->clearFlash();
     }
 

@@ -31,18 +31,13 @@ class Router
      *
      * @throws NotFound
      */
-    public function __construct()
+    public function __construct($privateDir, $requestURI)
     {
 
-        $this->privateDir = App::$privateDir;
-        $this->requestURI = App::$request->getURI();
-
-
+        $this->privateDir = $privateDir;
+        $this->requestURI = $requestURI;
 
         $this->generateRoutesFromFiles();
-
-
-
     }
 
     public function getControllerClassName() : string
@@ -74,19 +69,18 @@ class Router
 
     private function mapMiddleware(array $middleware) : void
     {
-        foreach($middleware as $m){
+        foreach($middleware as $m)
+        {
             $this->middleware[] = 'App\Middleware\\' . $m;
         }
     }
 
     private function mapRequestValidator(string $validatorName) : void
     {
-        if($validatorName !== ''){
+        if($validatorName !== '')
             $this->requestValidator = 'App\RequestValidators\\' . $validatorName;
-        } else {
+        else 
             $this->requestValidator = '';
-        }
-
     }
 
     /**
@@ -97,42 +91,35 @@ class Router
 
         // if cache/routes.php does not exist, create it. cache directory should be wiped every time
         // a deployment is performed
-        if(!file_exists($this->privateDir . '/cache/routes.php')){
-
+        if(!file_exists($this->privateDir . '/cache/routes.php'))
+        {
             $dir = new RecursiveDirectoryIterator($this->privateDir . '/routes');
 
-            foreach (new RecursiveIteratorIterator($dir) as $filename => $file) {
-                if(strpos($filename, ".php")){
+            foreach (new RecursiveIteratorIterator($dir) as $filename => $file) 
+                if(strpos($filename, ".php"))
                     $this->routes = array_merge($this->routes, require_once $filename);
-                }
-            }
 
             file_put_contents($this->privateDir . '/cache/routes.php', serialize($this->routes));
 
-        } else {
-
+        } 
+        else 
+        {
             $this->routes = unserialize(file_get_contents($this->privateDir . '/cache/routes.php'));
-
         }
 
 
-        foreach($this->routes as $r){
-
-
-
-            if($r[0] === $this->requestURI){
-
+        foreach($this->routes as $r)
+        {
+            if($r[0] === $this->requestURI)
+            {
                 $this->mapURI($r[1]);
                 $this->mapMiddleware(isset($r[2]) ? $r[2] : []);
                 $this->mapRequestValidator(isset($r[3]) ? $r[3] : '');
+
                 return;
-
             }
-
         }
 
         throw new NotFound('Route not found');
-
     }
-
 }
