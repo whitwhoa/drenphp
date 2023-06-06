@@ -54,6 +54,13 @@ abstract class RequestValidator
             {
                 if(is_string($methodChainDetails))
                 {
+                    $fenceUp = false;
+                    if(str_starts_with($methodChainDetails, "#"))
+                    {
+                        $fenceUp = true;
+                        $methodChainDetails = substr($methodChainDetails, 1);
+                    }
+
                     $methodChainDetails = explode(':', $methodChainDetails);
                     $method = $methodChainDetails[0];
                     $params = [];
@@ -61,7 +68,10 @@ abstract class RequestValidator
                         $params = explode(',', $methodChainDetails[1]);
                     $this->$method(array_merge([$field, $this->requestData[$field]], $params));
 
-                    continue;
+                    if($fenceUp && count($this->errors) > 0)
+                        break 2;
+                    else
+                        continue;
                 }
 
                 $methodChainDetails($this->requestData, $this->errors);

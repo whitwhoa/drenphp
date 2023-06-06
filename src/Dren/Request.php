@@ -12,6 +12,7 @@ class Request
     private object $getData;
     private object $postData;
     private string $referrer;
+    //private array $fileData;
 
 
     public function __construct()
@@ -22,6 +23,7 @@ class Request
         $this->setCookies();
         $this->setPostData();
         $this->setReferrer();
+        //$this->setFileData();
     }
 
     public function getMethod() : string
@@ -67,6 +69,11 @@ class Request
         return $this->referrer;
     }
 
+//    public function getFileData() : array
+//    {
+//
+//    }
+
     private function setReferrer() : void
     {
         $this->referrer = $_SERVER['HTTP_REFERER'] ?? '';
@@ -96,5 +103,10 @@ class Request
     {
         $this->postData = isset($_POST) ? (object)$_POST : NULL;
     }
+
+//    private function setFileData() : void
+//    {
+//
+//    }
 
 }
