@@ -1,14 +1,12 @@
 <?php
 
-namespace Rage;
+namespace Dren;
 
-
-use Dren\App;
 
 class Entity
 {
     protected $hasDbCon = true;
-    protected $dbName = 'default';
+    protected $dbName = null;
     protected $table = null;
     protected $columns = [];
 
@@ -22,13 +20,11 @@ class Entity
      */
     public function __construct()
     {
-        if($this->hasDbCon && !$this->table){
+        if($this->hasDbCon && !$this->table)
             throw new \Exception('Model that uses database connection MUST specify a table property');
-        }
 
-        if($this->hasDbCon){
-            $this->db = App::$db->get($this->dbName);
-        }
+        if($this->hasDbCon)
+            $this->db = App::get()->getDb($this->dbName);
     }
 
     /**
@@ -38,15 +34,13 @@ class Entity
      */
     public function find(int $id) : void
     {
-        if(!$this->hasDbCon){
+        if(!$this->hasDbCon)
             return;
-        }
+
         $result = $this->db->query("SELECT * FROM " . $this->table . " WHERE id = ?", [$id])->singleAsObj()->exec();
-        if($result){
-            foreach($result as $k => $v){
+        if($result)
+            foreach($result as $k => $v)
                 $this->$k = $v;
-            }
-        }
     }
 
     /**
@@ -60,15 +54,13 @@ class Entity
      */
     public function save() : void
     {
-        if(!$this->hasDbCon){
+        if(!$this->hasDbCon)
             return;
-        }
 
-        if(isset($this->id)){
+        if(isset($this->id))
             $this->updateExistingRecord();
-        } else {
+        else
             $this->insertNewRecord();
-        }
     }
 
     /**
@@ -78,8 +70,10 @@ class Entity
     {
         $cols = [];
         $vals = [];
-        foreach($this->columns as $k => $v){
-            if($k !== 'table'){
+        foreach($this->columns as $k => $v)
+        {
+            if($k !== 'table')
+            {
                 $cols[] = $k;
                 $vals[] = $v;
             }
@@ -89,12 +83,12 @@ class Entity
 
             $colsStr = "";
             $cnt = 0;
-            foreach($cols as $c){
+            foreach($cols as $c)
+            {
                 $cnt++;
                 $colsStr .= $c . " = ?";
-                if($cnt !== count($cols)){
+                if($cnt !== count($cols))
                     $colsStr .= ", ";
-                }
             }
             return $colsStr;
 
@@ -112,8 +106,10 @@ class Entity
     {
         $cols = [];
         $vals = [];
-        foreach($this->columns as $k => $v){
-            if($k !== 'table'){
+        foreach($this->columns as $k => $v)
+        {
+            if($k !== 'table')
+            {
                 $cols[] = $k;
                 $vals[] = $v;
             }
@@ -121,14 +117,14 @@ class Entity
 
         $q = "INSERT INTO " . $this->table . "(" .  implode(',', $cols) . ") VALUES(" . (function() use($cols){
             $qms = [];
-            foreach($cols as $c){
+            foreach($cols as $c)
                 $qms[] = '?';
-            }
             return implode(',', $qms);
         })() . ")";
 
         $this->id = $this->db->query($q, $vals)->exec();
-        if($this->id == 0){
+        if($this->id == 0)
+        {
             throw new \Exception('Unable to insert new record! TF did you do?' .
                 ' (You probably didn\'t include a necessary column...That\'s where I would put my money.)');
         }
@@ -161,6 +157,5 @@ class Entity
         }
         return isset($this->$var);
     }
-
 
 }

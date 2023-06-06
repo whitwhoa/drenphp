@@ -48,20 +48,22 @@ class MysqlConnectionManager
      *
      * @param string $db
      * @return MySQLCon
+     * @throws \Exception
      */
     private function genCon(string $db) : MySQLCon
     {
-        if(in_array($db, $this->connections))
+        if(array_key_exists($db, $this->connections))
             return $this->connections[$db];
 
-        $con = new MySQLCon(((function() use($db){
-            foreach($this->config as $con)
-            {
-                if($con['db'] === $db)
-                    return [$con['host'], $con['user'], $con['pass'], $con['db']];
-            }
+        $connectionArray = [];
+        foreach($this->config as $con)
+            if($con['db'] === $db)
+                $connectionArray = [$con['host'], $con['user'], $con['pass'], $con['db']];
+
+        if(count($connectionArray) == 0)
             throw new \Exception('Given database name does not exist within configuration file');
-        })()), true);
+
+        $con = new MySQLCon($connectionArray);
 
         $this->connections[$db] = $con;
 

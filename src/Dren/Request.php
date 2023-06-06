@@ -6,12 +6,12 @@ namespace Dren;
 class Request
 {
 
-    private $method;
-    private $uri;
-    private $cookies;
-    private $getData;
-    private $postData;
-    private $referrer;
+    private string $method;
+    private string $uri;
+    private array $cookies;
+    private object $getData;
+    private object $postData;
+    private string $referrer;
 
 
     public function __construct()
@@ -32,6 +32,16 @@ class Request
     public function getURI() : string
     {
         return $this->uri;
+    }
+
+    /**
+     * !!!NOTE!!!
+     * This merges GET and POST data, if any GET parameters are provided which have the same name as a POST parameter,
+     * the POST parameter will overwrite the GET parameter. Insure GET and POST parameter names are unique.
+     */
+    public function getGetPostData() : object
+    {
+        return (object)array_merge((array)$this->getData, (array)$this->postData);
     }
 
     public function getGetData() : object

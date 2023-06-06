@@ -111,8 +111,9 @@ class App
                     switch($rv->getFailureResponseType())
                     {
                         case 'redirect':
+                            //dad($rv->getErrors());
                             $this->sessionManager->flashSave('errors', $rv->getErrors());
-                            $this->sessionManager->flashSave('old', $rv->getParams());
+                            $this->sessionManager->flashSave('old', $this->request->getGetPostData());
                             (new Response())->redirect($this->request->getReferrer())->send();
                             return;
                     }
@@ -152,9 +153,9 @@ class App
         return $this->config;
     }
 
-    public function getDb() 
+    public function getDb($dbName = null)
     {
-        return $this->db;
+        return $this->db->get($dbName);
     }
 
     public function getRequest() 
