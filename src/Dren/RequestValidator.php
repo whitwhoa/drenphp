@@ -66,7 +66,21 @@ abstract class RequestValidator
                     $params = [];
                     if(count($methodChainDetails) > 1)
                         $params = explode(',', $methodChainDetails[1]);
-                    $this->$method(array_merge([$field, $this->requestData[$field]], $params));
+
+                    if (str_contains($field, '.*'))
+                    {
+                        $tmpAry1 = explode('.*', $field);
+                        $arrayKey = $tmpAry1[0];
+                        if (isset($this->requestData[$arrayKey]) && is_array($this->requestData[$arrayKey]))
+                        {
+                            $this->_validateArray($arrayKey, $this->requestData[$arrayKey], $method, $params);
+                        }
+                    }
+                    else
+                    {
+                        $this->$method(array_merge([$field, $this->requestData[$field]], $params));
+                    }
+
 
                     if($fenceUp && count($this->errors) > 0)
                         break 2;
@@ -89,7 +103,7 @@ abstract class RequestValidator
      * We allow underscores in function names here due to how they are called from
      * lists of strings (the underscores make for better readability in child classes)
      ******************************************************************************/
-    private function _setErrorMessage($method, $field, $defaultMsg)
+    private function _setErrorMessage($method, $field, $defaultMsg): void
     {
         $key = $field . '.' . $method;
 
@@ -98,6 +112,19 @@ abstract class RequestValidator
             $msgToUse = $this->messages[$key];
 
         $this->errors[$field][] = $msgToUse;
+    }
+
+    private function _validateArray($fieldKey, $fieldValues, $method, $params) : void
+    {
+        foreach ($fieldValues as $key => $value)
+        {
+            $newFieldKey = $fieldKey . '.' . $key;
+
+            if (is_array($value))
+                $this->_validateArray($newFieldKey, $value, $method, $params);
+            else
+                $this->$method(array_merge([$newFieldKey, $value], $params));
+        }
     }
 
     /******************************************************************************
@@ -157,6 +184,22 @@ abstract class RequestValidator
             return;
 
         $this->_setErrorMessage('unique', $params[0], $params[0] . ' must be unique');
+    }
+
+    private function is_array(array $params) : void
+    {
+        if(\is_array($params[1]))
+            return;
+
+        $this->_setErrorMessage('is_array', $params[0], $params[0] . ' must be an array');
+    }
+
+    private function min_array_elements(array $params) : void
+    {
+        if(count($params[1]) >= $params[2])
+            return;
+
+        $this->_setErrorMessage('min_array_elements', $params[0], $params[0] . ' must contain at least ' . $params[2] . ' elements');
     }
 
 

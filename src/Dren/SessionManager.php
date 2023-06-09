@@ -7,7 +7,7 @@ namespace Dren;
 /**
  * Session manager
  *
- * Currently pretty basic. Do not do much to prevent session highjacking at the moment.
+ * Currently pretty basic.
  *
  * @package Dren\Database
  */

@@ -4,9 +4,10 @@ namespace Dren;
 
 class Controller
 {
-    protected $request;
-    protected $sessionManager;
-    protected $viewCompiler;
+    protected Request $request;
+    protected SessionManager $sessionManager;
+    protected ViewCompiler $viewCompiler;
+    protected Response $response;
 
     public function __construct()
     {
@@ -15,5 +16,6 @@ class Controller
         $this->request = App::get()->getRequest();
         $this->sessionManager = App::get()->getSessionManager();
         $this->viewCompiler = App::get()->getViewCompiler();
+        $this->response = new Response();
     }
 }
