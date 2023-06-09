@@ -19,6 +19,10 @@ abstract class RequestValidator
 
     private array $errors = [];
 
+    private array $expandedFields = [];
+
+    private array $methodChains = [];
+
     public function __construct(Request $request)
     {
 
@@ -45,8 +49,11 @@ abstract class RequestValidator
     {
         $this->setRules();
 
-        foreach($this->rules as $field => $methodChain)
+        $this->_expandFields();
+
+        foreach($this->expandedFields as $ef)
         {
+            $methodChain = $this->methodChains[$ef[2]];
             if(is_string($methodChain))
                 $methodChain = explode('|', $methodChain);
 
@@ -67,22 +74,11 @@ abstract class RequestValidator
                     if(count($methodChainDetails) > 1)
                         $params = explode(',', $methodChainDetails[1]);
 
-                    if (str_contains($field, '.*'))
-                    {
-                        $tmpAry1 = explode('.*', $field);
-                        $arrayKey = $tmpAry1[0];
-                        if (isset($this->requestData[$arrayKey]) && is_array($this->requestData[$arrayKey]))
-                        {
-                            $this->_validateArray($arrayKey, $this->requestData[$arrayKey], $method, $params);
-                        }
-                    }
-                    else
-                    {
-                        $this->$method(array_merge([$field, $this->requestData[$field]], $params));
-                    }
+                    $preMethodCallErrorsCount = count($this->errors);
 
+                    $this->$method(array_merge([$ef[0], $ef[1]], $params));
 
-                    if($fenceUp && count($this->errors) > 0)
+                    if($fenceUp && (count($this->errors) > $preMethodCallErrorsCount))
                         break 2;
                     else
                         continue;
@@ -92,20 +88,88 @@ abstract class RequestValidator
             }
         }
 
-        if(count($this->errors) > 0)
-            return false;
-
-        return true;
+        return !(count($this->errors) > 0);
     }
 
-    /******************************************************************************
-     * Add various validation methods below this line:
-     * We allow underscores in function names here due to how they are called from
-     * lists of strings (the underscores make for better readability in child classes)
-     ******************************************************************************/
-    private function _setErrorMessage($method, $field, $defaultMsg): void
+    private function _expandFields() : void
     {
-        $key = $field . '.' . $method;
+        // expand fields such that when array syntax provided .*.etc.*....
+        // each individual element is expanded into its own "field"
+
+        // [the.*.field.*.name, requestData, methodChain]
+
+        foreach($this->rules as $field => $methodChain)
+        {
+            $this->methodChains[] = $methodChain;
+
+            $keys = explode('.', $field);
+            $index = 0;
+            $this->_expandFieldsRecursiveLoop($this->requestData, $keys, $index, []);
+        }
+    }
+
+    private function _expandFieldsRecursiveLoop($data, &$keys, &$index, $path) : void
+    {
+        if ($index >= count($keys))
+            return;
+
+        $currentKey = $keys[$index];
+        $path[] = $currentKey;
+
+        if ($currentKey === '*')
+        {
+            $itemIndex = 0;
+            foreach ($data as $item)
+            {
+                $path[count($path) - 1] = $itemIndex++;
+                $this->_expandFieldsProcessItem($item, $keys, $index, $path);
+                $path[count($path) - 1] = '*';
+            }
+        }
+        else if (isset($data[$currentKey]))
+        {
+            $this->_expandFieldsProcessItem($data[$currentKey], $keys, $index, $path);
+        }
+
+        array_pop($path);
+    }
+
+    function _expandFieldsProcessItem($item, &$keys, &$index, $path) : void
+    {
+        if ($index < count($keys) - 1)
+        {
+            $index++;
+            $this->_expandFieldsRecursiveLoop($item, $keys, $index, $path);
+            $index--;
+        }
+        else
+        {
+            $this->expandedFields[] = [implode('.', $path), $item, (count($this->methodChains) - 1)];
+        }
+    }
+
+    private function _setErrorMessage($method, $field, $defaultMsg) : void
+    {
+        $explodedField = explode('.', $field);
+
+        if(count($explodedField) > 1)
+        {
+            $key = '';
+            foreach($explodedField as $v)
+            {
+                if(is_numeric($v))
+                    $key .= '*';
+                else
+                    $key .= $v;
+
+                $key .= '.';
+            }
+            $key .= $method;
+        }
+        else
+        {
+            $key = $field . '.' . $method;
+        }
 
         $msgToUse = $defaultMsg;
         if(array_key_exists($key, $this->messages))
@@ -114,18 +178,12 @@ abstract class RequestValidator
         $this->errors[$field][] = $msgToUse;
     }
 
-    private function _validateArray($fieldKey, $fieldValues, $method, $params) : void
-    {
-        foreach ($fieldValues as $key => $value)
-        {
-            $newFieldKey = $fieldKey . '.' . $key;
+    /******************************************************************************
+     * Add various validation methods below this line:
+     * We allow underscores in function names here due to how they are called from
+     * lists of strings (the underscores make for better readability in child classes)
+     ******************************************************************************/
 
-            if (is_array($value))
-                $this->_validateArray($newFieldKey, $value, $method, $params);
-            else
-                $this->$method(array_merge([$newFieldKey, $value], $params));
-        }
-    }
 
     /******************************************************************************
      * Method signatures are all an array where the following is true:
