@@ -168,6 +168,8 @@ class SessionManager
         }
         $this->session = json_decode(file_get_contents($this->config->directory . '/' . $this->token));
 
+        //dad($this->session);
+
         $this->session->last_active = time();
 
         $this->flashed = $this->session->flash;

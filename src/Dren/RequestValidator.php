@@ -17,7 +17,7 @@ abstract class RequestValidator
 
     protected array $messages = [];
 
-    private array $errors = [];
+    private ValidationErrorContainer $errors;
 
     private array $expandedFields = [];
 
@@ -25,7 +25,6 @@ abstract class RequestValidator
 
     public function __construct(Request $request)
     {
-
         $this->request = $request;
 
         $this->requestData = array_merge(
@@ -33,11 +32,12 @@ abstract class RequestValidator
             ($request->getPostData() ? (array)$request->getPostData() : [])
         );
 
+        $this->errors = new ValidationErrorContainer();
     }
 
-    public function getErrors() : object
+    public function getErrors() : ValidationErrorContainer
     {
-        return (object)$this->errors;
+        return $this->errors;
     }
 
     public function getFailureResponseType() : string
@@ -74,11 +74,11 @@ abstract class RequestValidator
                     if(count($methodChainDetails) > 1)
                         $params = explode(',', $methodChainDetails[1]);
 
-                    $preMethodCallErrorsCount = count($this->errors);
+                    $preMethodCallErrorsCount = $this->errors->count();
 
                     $this->$method(array_merge([$ef[0], $ef[1]], $params));
 
-                    if($fenceUp && (count($this->errors) > $preMethodCallErrorsCount))
+                    if($fenceUp && ($this->errors->count() > $preMethodCallErrorsCount))
                         break 2;
                     else
                         continue;
@@ -88,7 +88,7 @@ abstract class RequestValidator
             }
         }
 
-        return !(count($this->errors) > 0);
+        return !($this->errors->count() > 0);
     }
 
     private function _expandFields() : void
@@ -175,7 +175,7 @@ abstract class RequestValidator
         if(array_key_exists($key, $this->messages))
             $msgToUse = $this->messages[$key];
 
-        $this->errors[$field][] = $msgToUse;
+        $this->errors->add($field, $msgToUse);
     }
 
     /******************************************************************************

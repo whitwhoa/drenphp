@@ -53,7 +53,11 @@ class ViewCompiler
         if(!array_key_exists($view, $this->views))
             throw new \Exception('Given view name does not exist');
 
-        $data['errors'] = ($this->sessionManager && $this->sessionManager->get('errors')) ? $this->sessionManager->get('errors') : NULL;
+        // check if sessionManager contains validation errors, if it does...instantiate a ValidationErrorContainer
+        $data['errors'] = null;
+        if($this->sessionManager && $this->sessionManager->get('errors'))
+            $data['errors'] = new ValidationErrorContainer((array)$this->sessionManager->get('errors'));
+
         $data['old'] = ($this->sessionManager && $this->sessionManager->get('old')) ? $this->sessionManager->get('old') : NULL;
 
         extract($data);

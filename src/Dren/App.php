@@ -111,7 +111,7 @@ class App
                     switch($rv->getFailureResponseType())
                     {
                         case 'redirect':
-                            $this->sessionManager->flashSave('errors', $rv->getErrors());
+                            $this->sessionManager->flashSave('errors', $rv->getErrors()->export());
                             $this->sessionManager->flashSave('old', $this->request->getGetPostData());
                             (new Response())->redirect($this->request->getReferrer())->send();
                             return;
