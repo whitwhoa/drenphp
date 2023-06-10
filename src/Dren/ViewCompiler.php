@@ -54,9 +54,9 @@ class ViewCompiler
             throw new \Exception('Given view name does not exist');
 
         // check if sessionManager contains validation errors, if it does...instantiate a ValidationErrorContainer
-        $data['errors'] = null;
+        $data['errors'] = new ValidationErrorContainer();
         if($this->sessionManager && $this->sessionManager->get('errors'))
-            $data['errors'] = new ValidationErrorContainer((array)$this->sessionManager->get('errors'));
+            $data['errors']->import((array)$this->sessionManager->get('errors'));
 
         $data['old'] = ($this->sessionManager && $this->sessionManager->get('old')) ? $this->sessionManager->get('old') : NULL;
 

@@ -44,6 +44,9 @@ class ValidationErrorContainer
 
     public function get(string $key) : array
     {
+        if(!array_key_exists($key, $this->errors))
+            return [];
+
         if(!str_contains($key, '.*'))
             return $this->errors[$key];
 
