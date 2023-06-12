@@ -62,7 +62,11 @@ class App
         $this->viewCompiler = new ViewCompiler($privateDir, $this->sessionManager);
 
         // Initialize router
-        $this->router = new Router($privateDir, $this->request->getURI());
+        $this->router = new Router($privateDir, $this->request->getURI(), $this->config->cache_routes);
+
+        // TODO:
+        // put method on router that allows getting route parameters
+        // put method on request that allows setting route parameters
 
         // Initialize database if provided within config
         if(isset($this->config->databases) && count($this->config->databases) > 0)
@@ -80,12 +84,14 @@ class App
             $this->config->session->directory = $this->privateDir . $this->config->session->directory;
     }
 
-    public function execute()
+    public function execute() : void
     {
         try{
 
             // Load routes, either from files or cache file
             $this->router->generateRoutes();
+
+            $this->request->setRouteParameters($this->router->getRouteParameters());
 
             // Execute each middleware. If the return type is Dren\Response, send the response
             foreach($this->router->getMiddleware() as $m)

@@ -14,6 +14,7 @@ class Request
     private string $referrer;
     //private array $fileData;
 
+    private array $routeParameters = [];
 
     public function __construct()
     {
@@ -34,6 +35,22 @@ class Request
     public function getURI() : string
     {
         return $this->uri;
+    }
+
+    /**
+     * called from App->execute()
+     */
+    public function setRouteParameters(array $routeParams) : void
+    {
+        $this->routeParameters = $routeParams;
+    }
+
+    public function getRouteParam(string $paramName) : mixed
+    {
+        if(array_key_exists($paramName, $this->routeParameters))
+            return $this->routeParameters[$paramName];
+        else
+            return null;
     }
 
     /**
