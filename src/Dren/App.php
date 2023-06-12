@@ -12,13 +12,15 @@ class App
 {
     private static $instance = null;
 
-    private $privateDir;
-    private $config;
-    private $db; // MySQLConnectionManager
-    private $request;
-    private $sessionManager; // SessionManager
-    private $viewCompiler; // ViewCompiler
-    private $router; // Router
+    private string $privateDir;
+    private object $config;
+    private ?MysqlConnectionManager $db; // MySQLConnectionManager
+    private Request $request;
+    private ?SessionManager $sessionManager; // SessionManager
+    private ViewCompiler $viewCompiler; // ViewCompiler
+    private Router $router; // Router
+
+    private HttpClient $httpClient;
 
     public static function init(string $privateDir)
     {
@@ -64,9 +66,8 @@ class App
         // Initialize router
         $this->router = new Router($privateDir, $this->request->getURI(), $this->config->cache_routes);
 
-        // TODO:
-        // put method on router that allows getting route parameters
-        // put method on request that allows setting route parameters
+        // Initialize HttpClient
+        $this->httpClient = new HttpClient($privateDir . '/storage/httpclient');
 
         // Initialize database if provided within config
         if(isset($this->config->databases) && count($this->config->databases) > 0)
@@ -183,4 +184,8 @@ class App
         return $this->router;
     }
 
+    public function getHttpClient()
+    {
+        return $this->httpClient;
+    }
 }

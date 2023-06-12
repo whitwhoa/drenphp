@@ -37,11 +37,11 @@ class Response
         return $this;
     }
 
-    public function json(array $body, int $code = 200) : Response
+    public function json(string $body, int $code = 200) : Response
     {
         $this->code = $code;
         $this->type = 'application/json';
-        $this->body = json_encode($body);
+        $this->body = $body;
         return $this;
     }
 
