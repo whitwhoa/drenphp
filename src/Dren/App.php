@@ -141,7 +141,7 @@ class App
         // catch (Exception $e){
 
         //     // had code here to display caught exception, but at this point it doesn't matter
-        //     // because if the 'display_errors' parameter was set to true we'd display it in the browser
+        //     // because if the 'display_errors' parameter (that used to be in config.php) was set to true we'd display it in the browser
         //     // otherwise it would be written to log...whereas if we just don't do anything here and default
         //     // to using the predefined php ini error reporting functions within boostrap file it will have the
         //     // same effect.

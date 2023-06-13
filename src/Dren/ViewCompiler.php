@@ -4,6 +4,7 @@
 namespace Dren;
 
 
+use Exception;
 use RecursiveDirectoryIterator;
 use RecursiveIteratorIterator;
 
@@ -46,12 +47,12 @@ class ViewCompiler
      * @param string $view
      * @param array $data
      * @return string
-     * @throws \Exception
+     * @throws Exception
      */
     public function compile(string $view, array $data = []) : string
     {
         if(!array_key_exists($view, $this->views))
-            throw new \Exception('Given view name does not exist');
+            throw new Exception('Given view name does not exist');
 
         // check if sessionManager contains validation errors, if it does...instantiate a ValidationErrorContainer
         $data['errors'] = new ValidationErrorContainer();

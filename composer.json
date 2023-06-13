@@ -5,7 +5,8 @@
     "require": {
         "php": ">=8.1.0",
         "ext-pdo": "*",
-        "ext-curl": "*"
+        "ext-curl": "*",
+        "ext-fileinfo": "*"
     },
     "autoload": {
 		"files": [
