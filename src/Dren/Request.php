@@ -17,8 +17,12 @@ class Request
 
     private array $routeParameters = [];
 
-    public function __construct()
+    private array $allowableMimes = [];
+
+    public function __construct(array $am)
     {
+        $this->allowableMimes = $am;
+
         $this->setMethod();
         $this->setURI();
         $this->setGetData();
@@ -124,13 +128,63 @@ class Request
 
         foreach($_FILES as $key => $val)
         {
+            if(!is_array($val['name']))
+            {
+                $this->files[] = new UploadedFile($this->allowableMimes, $key, $val['name'], $val['type'],
+                    $val['tmp_name'], $val['error'], $val['size']);
+                continue;
+            }
 
+            // if we've made it here, user has uploaded multiple files under one form element name
+            for($i = 0; $i < count($val['name']); $i++)
+            {
+                $this->files[] = new UploadedFile($this->allowableMimes, $key, $val['name'][$i], $val['type'][$i],
+                    $val['tmp_name'][$i], $val['error'][$i], $val['size'][$i]);
+            }
         }
+
     }
 
-    private function generateFile(array $fileData)
+    public function hasFile(string $name) : bool
     {
+        foreach($this->files as $f)
+            if($f->getFormName() == $name)
+                return true;
 
+        return false;
+    }
+
+    /**
+     * Returns a single file object. If $name is given and multiple files exist with this formName, the first one
+     * in $this->files will be returned. For returning multiple files, use $this->files()
+     *
+     * @param string $name
+     * @return UploadedFile|null
+     */
+    public function file(string $name) : ?UploadedFile
+    {
+        if(!$this->hasFile($name))
+            return null;
+
+        foreach($this->files as $k => $v)
+            if($v->getFormName() == $name)
+                return $v;
+    }
+
+    /**
+     * Returns an array of UploadedFiles that share the same formName value, or an empty array
+     *
+     * @param string $name
+     * @return array
+     */
+    public function files(string $name) : array
+    {
+        $matchingFiles = [];
+        foreach($this->files as $f)
+            if($f->getFormName() == $name)
+                $matchingFiles[] = $f;
+
+        return $matchingFiles;
     }
 
 }

@@ -32,6 +32,10 @@ abstract class RequestValidator
             ($request->getPostData() ? (array)$request->getPostData() : [])
         );
 
+        // TODO: put UploadedFiles data into $this->requestData, matching the format of post/get data,
+        // yeah, cause then you can check the type of value to see if it's of UploadedFile for methods
+        // specific to file validation...that should work
+
         $this->errors = new ValidationErrorContainer();
     }
 

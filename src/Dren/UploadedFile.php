@@ -2,7 +2,9 @@
 
 namespace Dren;
 
-class FileUpload
+use Exception;
+
+class UploadedFile
 {
     private string $clientName = '';
     private string $clientMime = '';
@@ -11,14 +13,17 @@ class FileUpload
     private int $size = 0;
     private string $serverMime = '';
     private array $allowableMimes = [];
+    private string $formName = '';
 
-    public function __construct(string $cn, string $cm, string $tp, int $ec, int $s)
+
+    public function __construct(array $am, string $fn, string $cn, string $cm, string $tp, int $ec, int $s)
     {
+        $this->formName = $fn;
         $this->clientName = $cn; // for info purposes, we don't use this to create a file on our server
         $this->clientMime = $cm; // for info purposes, we don't use this to deduce actual mime
         $this->tmpPath = $tp;
         $this->size = $s;
-        $this->allowableMimes = App::get()->getConfig()->allowed_file_upload_mimes;
+        $this->allowableMimes = $am;
 
         if($ec === UPLOAD_ERR_INI_SIZE)
             $this->errorMessage = 'UPLOAD_ERR_INI_SIZE';
@@ -46,9 +51,13 @@ class FileUpload
             return;
         }
 
-        
 
 
+    }
+
+    public function getFormName() : string
+    {
+        return $this->formName;
     }
 
     public function getClientName() : string
@@ -74,5 +83,30 @@ class FileUpload
     public function getErrorMessage() : string
     {
         return $this->errorMessage;
+    }
+
+    public function getMime() : string
+    {
+        return $this->serverMime;
+    }
+
+    public function getExt() : string
+    {
+        return $this->allowableMimes[$this->getMime()];
+    }
+
+    public function storeAs(string $path, string $filename) : void
+    {
+        if(!is_dir($path))
+            throw new Exception('Attempting to save file to directory which does not exist');
+
+        if(!str_ends_with($path, '/'))
+            $path .= '/';
+
+        $fullPath = $path . $filename;
+
+        rename($this->tmpPath, $fullPath);
+
+        chmod($fullPath, 0664);
     }
 }

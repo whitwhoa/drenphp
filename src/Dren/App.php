@@ -45,7 +45,7 @@ class App
         $this->injectPrivateDirIntoConfig();
 
         // Initialize request
-        $this->request = new Request();
+        $this->request = new Request($this->config->allowed_file_upload_mimes);
 
         // Initialize session manager if enabled within config
         if($this->config->session->enabled)

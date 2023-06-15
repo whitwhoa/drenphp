@@ -10,18 +10,19 @@
  * @param string|null $phone
  * @return null|string
  */
-function formatPhone(string $phone=null) : ?string {
-    if(!$phone){
+function formatPhone(string $phone=null) : ?string
+{
+    if(!$phone)
         return null;
-    }
+
     if(strlen($phone) !== 10 || (function($p){
-            foreach(str_split($p) as $c){
-                if(!is_numeric($c)){
+            foreach(str_split($p) as $c)
+                if(!is_numeric($c))
                     return true;
-                }
-            }
+
             return false;
-        })($phone)){
+        })($phone))
+    {
         return null;
     }
     return strlen((string)$phone) !== 10 ? null :
@@ -36,20 +37,16 @@ function formatPhone(string $phone=null) : ?string {
  *
  * And return simple date format m/d/Y
  *
- * @param null|string $date
- * @return null|string
+ * @param string $date
+ * @return string
  */
-function simpleDateFormat($date) : ?string {
-    if(!$date){
-        return null;
-    }
+function simpleDateFormat(string $date) : string
+{
     return date('m/d/Y', strtotime($date));
 }
 
-function simpleTimeFormat($date) : ?string {
-    if(!$date){
-        return null;
-    }
+function simpleTimeFormat(string $date) : string
+{
     return date('h:i a', strtotime($date));
 }
 
@@ -57,7 +54,8 @@ function simpleTimeFormat($date) : ?string {
  * Echo the given $var to screen and end program execution
  * $var can be of any type
  */
-function dad($var) : void {
+function dad($var) : void
+{
     echo '<pre>';
     echo var_export($var, true);
     echo '</pre>';
@@ -65,36 +63,14 @@ function dad($var) : void {
 }
 
 /**
- * Accepts a string value of a file path as parameter $path, and an optional integer value
- * for max quality of compression.
- *
- * Function compresses the .png image at the given path, and throws a GlobalException if
- * an error occurs
- *
- * @param string $path
- * @param int $maxQuality
- * @throws \Exception
- */
-function compressPng(string $path, int $maxQuality = 90) : void {
-    $minQuality = 60;
-    $compressed = shell_exec("pngquant --quality=" . $minQuality . "-" . $maxQuality . " - < " .
-        escapeshellarg($path));
-    if(!$compressed){
-        throw new \Exception('Image compression failed. Is pngquant 1.8+ installed on the server?');
-    }
-    file_put_contents($path, $compressed);
-}
-
-/**
  * Generate and return a valid guid v4
  *
  * @return string
  */
-function guidv4()
+function uuid_create_v4() : string
 {
-    if (function_exists('com_create_guid') === true){
+    if (function_exists('com_create_guid') === true)
         return trim(com_create_guid(), '{}');
-    }
 
     $data = openssl_random_pseudo_bytes(16);
     $data[6] = chr(ord($data[6]) & 0x0f | 0x40); // set version to 0100
@@ -112,7 +88,8 @@ function guidv4()
  * @param float $lng2
  * @return int
  */
-function get_distance(float $lat1, float $lng1, float $lat2, float $lng2) : int {
+function get_distance(float $lat1, float $lng1, float $lat2, float $lng2) : int
+{
     return round(3959 * acos(cos(deg2rad($lat1)) * cos(deg2rad($lat2)) *
             cos(deg2rad($lng2) - deg2rad($lng1)) + sin(deg2rad($lat1)) *
             sin(deg2rad($lat2))));
@@ -125,17 +102,17 @@ function get_distance(float $lat1, float $lng1, float $lat2, float $lng2) : int 
  * @param array $a2
  * @return bool
  */
-function arrays_are_equal(array $a1, array $a2) : bool {
-    if(count($a1) !== count($a2)){
+function arrays_are_equal(array $a1, array $a2) : bool
+{
+    if(count($a1) !== count($a2))
         return false;
-    }
+
     sort($a1);
     sort($a2);
-    for($i=0;$i<count($a1);$i++){
-        if($a1[$i] != $a2[$i]){
+    for($i=0;$i<count($a1);$i++)
+        if($a1[$i] != $a2[$i])
             return false;
-        }
-    }
+
     return true;
 }
 
@@ -147,7 +124,8 @@ function arrays_are_equal(array $a1, array $a2) : bool {
  * @param string $in
  * @return string
  */
-function normalize_string(string $in) : string {
+function normalize_string(string $in) : string
+{
     return strtolower(preg_replace("/[^a-zA-Z0-9]+/", "", $in));
 }
 
@@ -157,7 +135,8 @@ function normalize_string(string $in) : string {
  * @param int $chars
  * @return string
  */
-function generate_temp_password(int $chars = 8) : string {
+function generate_temp_password(int $chars = 8) : string
+{
     $data = '1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZabcefghijklmnopqrstuvwxyz';
     return substr(str_shuffle($data), 0, $chars);
 }
@@ -167,7 +146,8 @@ function generate_temp_password(int $chars = 8) : string {
  *
  * @return bool
  */
-function start_section() : bool {
+function start_section() : bool
+{
     return ob_start();
 }
 
@@ -176,7 +156,8 @@ function start_section() : bool {
  *
  * @return string
  */
-function end_section() : string {
+function end_section() : string
+{
     return ob_get_clean();
 }
 
@@ -186,7 +167,8 @@ function end_section() : string {
  *
  * @return array
  */
-function get_states() : array {
+function get_states() : array
+{
     return [
         'AL' => 'Alabama',
         'AK' => 'Alaska',
