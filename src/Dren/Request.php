@@ -13,7 +13,7 @@ class Request
     private object $postData;
     private string $referrer;
 
-    private array $files;
+    private array $files = [];
 
     private array $routeParameters = [];
 
@@ -177,7 +177,7 @@ class Request
      * @param string $name
      * @return array
      */
-    public function files(string $name) : array
+    public function groupedFiles(string $name) : array
     {
         $matchingFiles = [];
         foreach($this->files as $f)
@@ -185,6 +185,28 @@ class Request
                 $matchingFiles[] = $f;
 
         return $matchingFiles;
+    }
+
+    /**
+     * Create an array where each key is the form name that was provided with the uploaded file, where files
+     * sharing the same formName are in an array, and files with unique formNames simply have key as formName and
+     * UploadedFile as value
+     *
+     * Used within request validator to put files in format that it can use for running validation methods
+     *
+     * @return array
+     */
+    public function allFilesByFormName() : array
+    {
+        $groupedFiles = [];
+        foreach($this->files as $uf)
+            $groupedFiles[$uf->getFormName()][] = $uf;
+
+        $filteredGroupedFiles = [];
+        foreach($groupedFiles as $k => $v)
+            $filteredGroupedFiles[$k] = count($v) === 1 ? $v[0] : $v;
+
+        return $filteredGroupedFiles;
     }
 
 }

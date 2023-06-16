@@ -29,12 +29,9 @@ abstract class RequestValidator
 
         $this->requestData = array_merge(
             ($request->getGetData() ? (array)$request->getGetData() : []),
-            ($request->getPostData() ? (array)$request->getPostData() : [])
+            ($request->getPostData() ? (array)$request->getPostData() : []),
+            ($request->allFilesByFormName())
         );
-
-        // TODO: put UploadedFiles data into $this->requestData, matching the format of post/get data,
-        // yeah, cause then you can check the type of value to see if it's of UploadedFile for methods
-        // specific to file validation...that should work
 
         $this->errors = new ValidationErrorContainer();
     }
@@ -54,6 +51,8 @@ abstract class RequestValidator
         $this->setRules();
 
         $this->_expandFields();
+
+        dad($this->expandedFields);
 
         foreach($this->expandedFields as $ef)
         {
@@ -264,5 +263,12 @@ abstract class RequestValidator
         $this->_setErrorMessage('min_array_elements', $params[0], $params[0] . ' must contain at least ' . $params[2] . ' elements');
     }
 
+    private function is_file(array $params) : void
+    {
+        if(get_class($params[1]) === 'Dren\UploadedFile' && !$params[1]->hasError())
+            return;
+
+        $this->_setErrorMessage('is_file', $params[0], $params[0] . ' must be a valid file');
+    }
 
 }
