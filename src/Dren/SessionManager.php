@@ -57,7 +57,8 @@ class SessionManager
         {
             case 'file':
             default:
-                unlink($this->config->directory . '/' . $this->token);
+                if(file_exists($this->config->directory . '/' . $this->token))
+                    unlink($this->config->directory . '/' . $this->token);
         }
 
         $this->token = null;
@@ -186,7 +187,7 @@ class SessionManager
      */
     private function startSession(int $userId = null) : void
     {
-        $this->token = guidv4();
+        $this->token = uuid_create_v4();
 
         $this->session = (object)[
             'created_at' => time(),

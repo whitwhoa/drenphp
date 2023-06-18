@@ -52,13 +52,51 @@ abstract class RequestValidator
 
         $this->_expandFields();
 
-        dad($this->expandedFields);
+        //dad($this->expandedFields);
+        //dad($this->request);
+
 
         foreach($this->expandedFields as $ef)
         {
+            // ef = [the.*.field.*.name, requestData, methodChain]
+
             $methodChain = $this->methodChains[$ef[2]];
             if(is_string($methodChain))
                 $methodChain = explode('|', $methodChain);
+
+            /*
+             *
+             * elements are nullable if form element is:
+                > not present - ie form submission did not send the element at all
+                    > in this case the element will exist within expandedFields and it's value will be null
+                > present but does not contain a value - form sent element but provided no value:
+                    > what does "no value" mean in which contexts?
+                        > if value is array but has no elements
+                        > if value is object and of class UploadedFile but has error (no uploaded data viewed as error)
+                        > if value is null
+                        > if value is empty string
+             *
+             */
+            if(\in_array('nullable', $methodChain))
+            {
+                if
+                (
+                    (is_array($ef[1]) && count($ef[1]) > 0) ||
+                    (is_object($ef[1]) && get_class($ef[1]) === 'Dren\UploadedFile' && $ef[1]->hasError()) ||
+                    ($ef[1] === null) ||
+                    ($ef[1] === '')
+                ){
+                    continue;
+                }
+
+                // remove nullable from methodChain
+                $updatedMethodChain = [];
+                foreach($methodChain as $m)
+                    if($m !== 'nullable')
+                        $updatedMethodChain[] = $m;
+
+                $methodChain = $updatedMethodChain;
+            }
 
             foreach($methodChain as $methodChainDetails)
             {
@@ -122,16 +160,28 @@ abstract class RequestValidator
         if ($currentKey === '*')
         {
             $itemIndex = 0;
-            foreach ($data as $item)
+            if($data && count($data) > 0)
             {
-                $path[count($path) - 1] = $itemIndex++;
-                $this->_expandFieldsProcessItem($item, $keys, $index, $path);
-                $path[count($path) - 1] = '*';
+                foreach ($data as $item)
+                {
+                    $path[count($path) - 1] = $itemIndex++;
+                    $this->_expandFieldsProcessItem($item, $keys, $index, $path);
+                    $path[count($path) - 1] = '*';
+                }
             }
+            else
+            {
+                $this->_expandFieldsProcessItem(null, $keys, $index, $path);
+            }
+
         }
         else if (isset($data[$currentKey]))
         {
             $this->_expandFieldsProcessItem($data[$currentKey], $keys, $index, $path);
+        }
+        else if (!isset($data[$currentKey]))
+        {
+            $this->_expandFieldsProcessItem(null, $keys, $index, $path);
         }
 
         array_pop($path);
@@ -195,7 +245,30 @@ abstract class RequestValidator
 
     private function required(array $params) : void
     {
-        if($params[1])
+        // if a form element is listed in $this->rules, then the data that is being validated will always contain
+        // an element of that name. If an element with that name was not provided with the form submission, it's value
+        // will be null
+
+        // Countable values
+        if(is_array($params[1]))
+        {
+            if(count($params[1]) === 0)
+                $this->_setErrorMessage('required', $params[0], $params[0] . ' is required');
+
+            return;
+        }
+
+        // File uploads
+        if(is_object($params[1]) && get_class($params[1]) === 'Dren\UploadedFile')
+        {
+            if($params[1]->hasError())
+                $this->_setErrorMessage('required', $params[0], $params[0] . ' is required');
+
+            return;
+        }
+
+        // Everything else
+        if($params[1] !== null && $params[1] !== '')
             return;
 
         $this->_setErrorMessage('required', $params[0], $params[0] . ' is required');
@@ -204,7 +277,7 @@ abstract class RequestValidator
     private function min_char(array $params) : void
     {
         $valString = (string)$params[1];
-        if(strlen($valString) > $params[2])
+        if(strlen($valString) >= $params[2])
             return;
 
         $this->_setErrorMessage('min_char', $params[0], $params[0] . ' must be at least ' . $params[2] . ' characters');
@@ -265,7 +338,7 @@ abstract class RequestValidator
 
     private function is_file(array $params) : void
     {
-        if(get_class($params[1]) === 'Dren\UploadedFile' && !$params[1]->hasError())
+        if(is_object($params[1]) && get_class($params[1]) === 'Dren\UploadedFile' && !$params[1]->hasError())
             return;
 
         $this->_setErrorMessage('is_file', $params[0], $params[0] . ' must be a valid file');
