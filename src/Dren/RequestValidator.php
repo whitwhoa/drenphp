@@ -9,8 +9,6 @@ abstract class RequestValidator
     abstract protected function setRules() : void;
     protected Request $request;
 
-    protected string $failureResponseType = 'redirect'; // or json
-
     protected array $rules = [];
 
     private array $requestData = [];
@@ -39,11 +37,6 @@ abstract class RequestValidator
     public function getErrors() : ValidationErrorContainer
     {
         return $this->errors;
-    }
-
-    public function getFailureResponseType() : string
-    {
-        return $this->failureResponseType;
     }
 
     public function validate() : bool
@@ -240,7 +233,7 @@ abstract class RequestValidator
 
     /******************************************************************************
      * Method signatures are all an array where the following is true:
-     * $input[0 => $fieldName, 1 => $value, 2 => (optional...), 3 => (...)]
+     * $input[0 => $fieldName, 1 => $value, 2 => (optional...), 3 => (optional...etc)]
      ******************************************************************************/
 
     private function required(array $params) : void
@@ -342,6 +335,36 @@ abstract class RequestValidator
             return;
 
         $this->_setErrorMessage('is_file', $params[0], $params[0] . ' must be a valid file');
+    }
+
+    private function max_file_size(array $params) : void
+    {
+        $uploadedFileSizeInKB = $params[1]->getSize() * 0.001;
+        $maxFileSize = (int)$params[2];
+
+        if($uploadedFileSizeInKB <= $maxFileSize)
+            return;
+
+        $this->_setErrorMessage('max_file_size', $params[0], $params[0] . ' must be less than or equal to the following size: ' . $params[2] . 'kb');
+    }
+
+    private function mimetypes(array $params) : void
+    {
+        // if we've made it to this function, we already know the file is of an overall allowable mimetype (is of one
+        // of the values provided within the config file for allowed_file_upload_mimes), otherwise it would contain an
+        // error...so this validation rule is used for insuring that specific files are of specific mimes
+        $allowableMimesForThisFile = [];
+        for($i = 2; $i < count($params); $i++)
+            $allowableMimesForThisFile[] = $params[$i];
+
+//        echo var_export($params[1]->getMime(), true) . '<br/>';
+//        echo var_export($allowableMimesForThisFile, true) . '<br/>';
+//        die;
+
+        if(in_array($params[1]->getMime(), $allowableMimesForThisFile))
+            return;
+
+        $this->_setErrorMessage('mimetypes', $params[0], $params[0] . ' must be one of the following file types: ' . implode(',', $allowableMimesForThisFile));
     }
 
 }

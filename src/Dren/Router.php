@@ -5,10 +5,6 @@ namespace Dren;
 
 
 use Dren\Exceptions\NotFound;
-use RecursiveDirectoryIterator;
-use RecursiveIteratorIterator;
-
-use Dren\App;
 
 class Router
 {

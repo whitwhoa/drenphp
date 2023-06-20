@@ -7,8 +7,6 @@ use Dren\App;
 
 class Response
 {
-
-
     private $code;
     private $body;
     private $redirect;
@@ -21,6 +19,12 @@ class Response
         // safe to use singleton here to prime these values
         if(App::get()->getConfig()->session->enabled)
             $this->sessionManager = App::get()->getSessionManager();
+    }
+
+    public function setCode(int $httpCode) : object
+    {
+        $this->code = $httpCode;
+        return $this;
     }
 
     public function redirect(string $redirect) : Response

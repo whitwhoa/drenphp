@@ -115,19 +115,24 @@ class App
 
                 if(!$rv->validate())
                 {
-                    switch($rv->getFailureResponseType())
+                    if(!$this->request->isJsonRequest())
                     {
-                        case 'redirect':
-                            $this->sessionManager->flashSave('errors', $rv->getErrors()->export());
-                            $this->sessionManager->flashSave('old', $this->request->getGetPostData());
-                            (new Response())->redirect($this->request->getReferrer())->send();
-                            return;
+                        $this->sessionManager->flashSave('errors', $rv->getErrors()->export());
+                        $this->sessionManager->flashSave('old', $this->request->getGetPostData());
+                        (new Response())->setCode(422)->redirect($this->request->getReferrer())->send();
+                        return;
                     }
+                    else
+                    {
+                        // TODO: implement this
+                        return;
+                    }
+
                 }
             }
 
             // Execute the given method for the given controller class and send its
-            // response (as every controller method should return a Response object)
+            // response (as every controller method returns a Response object)
             $class = $this->router->getControllerClassName();
             $method = $this->router->getControllerClassMethodName();
             (new $class())->$method()->send();
@@ -135,18 +140,33 @@ class App
         }
         catch(Forbidden|NotFound|Unauthorized|UnprocessableEntity $e)
         {
-            (new Response())->html($this->viewCompiler->compile('errors.' . $e->getCode(),
-                ['detailedMessage' => $e->getMessage()]))->send();
+            if(!$this->request->isJsonRequest())
+            {
+                (new Response())->html($this->viewCompiler->compile('errors.' . $e->getCode(),
+                    ['detailedMessage' => $e->getMessage()]))->send();
+            }
+            else
+            {
+                // TODO: implement this
+            }
         }
-        // catch (Exception $e){
+        catch (Exception $e)
+        {
+            error_log($e->getMessage() . ":" . $e->getTraceAsString());
 
-        //     // had code here to display caught exception, but at this point it doesn't matter
-        //     // because if the 'display_errors' parameter (that used to be in config.php) was set to true we'd display it in the browser
-        //     // otherwise it would be written to log...whereas if we just don't do anything here and default
-        //     // to using the predefined php ini error reporting functions within boostrap file it will have the
-        //     // same effect.
+            if(!$this->request->isJsonRequest())
+            {
+                (new Response())->html($this->viewCompiler->compile('errors.500',
+                    ['detailedMessage' => 'An unexpected error was encountered while processing your request.']
+                ))->send();
+            }
+            else
+            {
+                // TODO: implement this
+            }
 
-        // }
+         }
+
     }
 
     public function getPrivateDir() 

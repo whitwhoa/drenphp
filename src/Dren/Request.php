@@ -50,6 +50,15 @@ class Request
         $this->routeParameters = $routeParams;
     }
 
+    function isJsonRequest() : bool
+    {
+        $headers = getallheaders();
+        if (isset($headers['Accept']))
+            return str_contains($headers['Accept'], 'application/json');
+
+        return false;
+    }
+
     public function getRouteParam(string $paramName) : mixed
     {
         if(array_key_exists($paramName, $this->routeParameters))
