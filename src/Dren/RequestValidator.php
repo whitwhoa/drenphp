@@ -133,6 +133,16 @@ abstract class RequestValidator
             }
 
             $runAll = \in_array('run_all', $methodChain);
+            if($runAll)
+            {
+                // remove run_all from methodChain
+                $updatedMethodChain = [];
+                foreach($methodChain as $m)
+                    if($m !== 'run_all')
+                        $updatedMethodChain[] = $m;
+
+                $methodChain = $updatedMethodChain;
+            }
 
             foreach($methodChain as $methodChainDetails)
             {
@@ -342,6 +352,14 @@ abstract class RequestValidator
             return;
 
         $this->_setErrorMessage('required', $params[0], $params[0] . ' is required');
+    }
+
+    private function numeric(array $params) : void
+    {
+        if(is_numeric($params[1]))
+            return;
+
+        $this->_setErrorMessage('numeric', $params[0], $params[0] . ' must be numeric');
     }
 
     private function min_char(array $params) : void
