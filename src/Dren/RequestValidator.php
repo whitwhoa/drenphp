@@ -21,6 +21,8 @@ abstract class RequestValidator
 
     private array $methodChains = [];
 
+    private string $valueNotPresentToken;
+
     public function __construct(Request $request)
     {
         $this->request = $request;
@@ -32,6 +34,8 @@ abstract class RequestValidator
         );
 
         $this->errors = new ValidationErrorContainer();
+
+        $this->valueNotPresentToken = md5(mt_rand(1, 1000) . time());
     }
 
     public function getErrors() : ValidationErrorContainer
@@ -47,7 +51,6 @@ abstract class RequestValidator
 
         //dad($this->expandedFields);
         //dad($this->request);
-
 
         foreach($this->expandedFields as $ef)
         {
@@ -74,11 +77,13 @@ abstract class RequestValidator
             {
                 if
                 (
-                    (is_array($ef[1]) && count($ef[1]) > 0) ||
+                    (is_array($ef[1]) && count($ef[1]) === 0) ||
                     (is_object($ef[1]) && get_class($ef[1]) === 'Dren\UploadedFile' && $ef[1]->hasError()) ||
                     ($ef[1] === null) ||
-                    ($ef[1] === '')
+                    ($ef[1] === '') ||
+                    ($ef[1] == $this->valueNotPresentToken)
                 ){
+                    // skip over running validation method chain for this element as it was "null"
                     continue;
                 }
 
@@ -90,6 +95,39 @@ abstract class RequestValidator
 
                 $methodChain = $updatedMethodChain;
             }
+
+            /*
+             * "sometimes" works exactly like nullable only if an element is provided it must NOT be null, so either
+             * the form contains the element and the element is not nothing and the rest of the validation rules will
+             * execute, OR the form does not contain the element and none of the validation rules are run
+             */
+            if(\in_array('sometimes', $methodChain))
+            {
+                if($ef[1] == $this->valueNotPresentToken)
+                    continue;
+
+                if
+                (
+                    (is_array($ef[1]) && count($ef[1]) > 0 ) ||
+                    (is_object($ef[1]) && get_class($ef[1]) === 'Dren\UploadedFile' && !$ef[1]->hasError()) ||
+                    ($ef[1] !== null && $ef[1] !== '')
+                ){
+                    //dad($ef[1]);
+                    // remove sometimes from methodChain
+                    $updatedMethodChain = [];
+                    foreach($methodChain as $m)
+                        if($m !== 'sometimes')
+                            $updatedMethodChain[] = $m;
+
+                    $methodChain = $updatedMethodChain;
+                }
+                else
+                {
+                    $methodChain = [];
+                    $methodChain[] = 'required';
+                }
+            }
+
 
             foreach($methodChain as $methodChainDetails)
             {
@@ -122,6 +160,7 @@ abstract class RequestValidator
             }
         }
 
+        //die;
         return !($this->errors->count() > 0);
     }
 
@@ -164,7 +203,7 @@ abstract class RequestValidator
             }
             else
             {
-                $this->_expandFieldsProcessItem(null, $keys, $index, $path);
+                $this->_expandFieldsProcessItem($this->valueNotPresentToken, $keys, $index, $path);
             }
 
         }
@@ -172,9 +211,9 @@ abstract class RequestValidator
         {
             $this->_expandFieldsProcessItem($data[$currentKey], $keys, $index, $path);
         }
-        else if (!isset($data[$currentKey]))
+        else
         {
-            $this->_expandFieldsProcessItem(null, $keys, $index, $path);
+            $this->_expandFieldsProcessItem($this->valueNotPresentToken, $keys, $index, $path);
         }
 
         array_pop($path);
@@ -238,6 +277,10 @@ abstract class RequestValidator
 
     private function required(array $params) : void
     {
+//        echo '<pre>';
+//        echo var_export($params, true);
+//        echo '</pre>';
+
         // if a form element is listed in $this->rules, then the data that is being validated will always contain
         // an element of that name. If an element with that name was not provided with the form submission, it's value
         // will be null
@@ -316,7 +359,10 @@ abstract class RequestValidator
     private function is_array(array $params) : void
     {
         if(\is_array($params[1]))
+        {
+            echo 'uh wtf<br/>';
             return;
+        }
 
         $this->_setErrorMessage('is_array', $params[0], $params[0] . ' must be an array');
     }
@@ -327,6 +373,14 @@ abstract class RequestValidator
             return;
 
         $this->_setErrorMessage('min_array_elements', $params[0], $params[0] . ' must contain at least ' . $params[2] . ' elements');
+    }
+
+    private function max_array_elements(array $params) : void
+    {
+        if(count($params[1]) <= $params[2])
+            return;
+
+        $this->_setErrorMessage('max_array_elements', $params[0], $params[0] . ' must contain at no more than ' . $params[2] . ' elements');
     }
 
     private function is_file(array $params) : void
@@ -357,14 +411,22 @@ abstract class RequestValidator
         for($i = 2; $i < count($params); $i++)
             $allowableMimesForThisFile[] = $params[$i];
 
-//        echo var_export($params[1]->getMime(), true) . '<br/>';
-//        echo var_export($allowableMimesForThisFile, true) . '<br/>';
-//        die;
-
         if(in_array($params[1]->getMime(), $allowableMimesForThisFile))
             return;
 
         $this->_setErrorMessage('mimetypes', $params[0], $params[0] . ' must be one of the following file types: ' . implode(',', $allowableMimesForThisFile));
+    }
+
+    private function in(array $params) : void
+    {
+        $allowableValues = [];
+        for($i = 2; $i < count($params); $i++)
+            $allowableValues[] = $params[$i];
+
+        if(in_array($params[1], $allowableValues))
+            return;
+
+        $this->_setErrorMessage('in', $params[0], $params[0] . ' must be one of the following values: ' . implode(',', $allowableValues));
     }
 
 }

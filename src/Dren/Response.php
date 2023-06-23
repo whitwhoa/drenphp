@@ -7,11 +7,11 @@ use Dren\App;
 
 class Response
 {
-    private $code;
-    private $body;
-    private $redirect;
-    private $type;
-    private $sessionManager = null;
+    private int $code;
+    private string $body;
+    private ?string $redirect = null;
+    private string $type;
+    private SessionManager|null $sessionManager = null;
 
     public function __construct()
     {
@@ -19,6 +19,9 @@ class Response
         // safe to use singleton here to prime these values
         if(App::get()->getConfig()->session->enabled)
             $this->sessionManager = App::get()->getSessionManager();
+
+        // default status return code to 200
+        $this->code = 200;
     }
 
     public function setCode(int $httpCode) : object
@@ -33,19 +36,21 @@ class Response
         return $this;
     }
 
-    public function html(string $body, int $code = 200) : Response
+    public function html(string $body) : Response
     {
-        $this->code = $code;
         $this->type = 'text/html';
         $this->body = $body;
         return $this;
     }
 
-    public function json(string $body, int $code = 200) : Response
+    public function json(array|string $body) : Response
     {
-        $this->code = $code;
+        if(is_array($body))
+            $this->body = json_encode($body);
+        else
+            $this->body = $body;
+
         $this->type = 'application/json';
-        $this->body = $body;
         return $this;
     }
 
@@ -58,12 +63,12 @@ class Response
         {
             http_response_code(302);
             header('Location: ' . $this->redirect);
+            exit;
         }
 
         http_response_code($this->code);
         header('Content-Type: ' . $this->type);
         echo $this->body;
-        //exit;
     }
 
 }

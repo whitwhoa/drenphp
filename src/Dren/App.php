@@ -119,15 +119,17 @@ class App
                     {
                         $this->sessionManager->flashSave('errors', $rv->getErrors()->export());
                         $this->sessionManager->flashSave('old', $this->request->getGetPostData());
-                        (new Response())->setCode(422)->redirect($this->request->getReferrer())->send();
+                        (new Response())->redirect($this->request->getReferrer())->send();
                         return;
                     }
                     else
                     {
-                        // TODO: implement this
+                        (new Response())->setCode(422)->json([
+                            'message' => 'Unable to process request due to validation errors',
+                            'errors' => $rv->getErrors()->export()
+                        ])->send();
                         return;
                     }
-
                 }
             }
 
@@ -147,7 +149,23 @@ class App
             }
             else
             {
-                // TODO: implement this
+                $message = '';
+                switch ($e->getCode())
+                {
+                    case 401:
+                        $message = 'You are not authorized to access this resource';
+                    case 403:
+                        $message = 'This resource is forbidden';
+                    case 404:
+                        $message = 'Resource does not exist';
+                    case 422:
+                        $message = 'Unable to process request given provided parameters';
+                }
+
+                (new Response())->setCode($e->getCode())->json([
+                    'message' => $message
+                ])->send();
+
             }
         }
         catch (Exception $e)
@@ -156,17 +174,17 @@ class App
 
             if(!$this->request->isJsonRequest())
             {
-                (new Response())->html($this->viewCompiler->compile('errors.500',
+                (new Response())->setCode(500)->html($this->viewCompiler->compile('errors.500',
                     ['detailedMessage' => 'An unexpected error was encountered while processing your request.']
                 ))->send();
             }
             else
             {
-                // TODO: implement this
+                (new Response())->setCode(500)->json([
+                    'message' => 'An unexpected error was encountered while processing your request.'
+                ])->send();
             }
-
          }
-
     }
 
     public function getPrivateDir() 

@@ -6,10 +6,10 @@ use Exception;
 use Throwable;
 
 /**
- * For throwing 403 (Not Authorized)
+ * For throwing 403 (Forbidden)
  *
- * I’m sorry. I know who you are–I believe who you say you
- * are–but you just don’t have permission to access this resource.
+ * you aren’t authenticated–either not authenticated at all
+ * or authenticated incorrectly–but please reauthenticate and try again.
  *
  * Class ForbiddenException
  * @package Dren\Exceptions

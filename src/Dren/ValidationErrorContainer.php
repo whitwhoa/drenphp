@@ -30,7 +30,12 @@ class ValidationErrorContainer
 
     public function count() : int
     {
-        return count($this->errors);
+        $c = 0;
+        foreach($this->errors as $arrayElement)
+            $c += count($arrayElement);
+
+        //return count($this->errors);
+        return $c;
     }
 
     public function first(string $key) : string

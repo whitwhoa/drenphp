@@ -6,10 +6,10 @@ use Exception;
 use Throwable;
 
 /**
- * For throwing 401 (Not Authenticated)
+ * For throwing 401 (Unauthorized)
  *
- * you aren’t authenticated–either not authenticated at all
- * or authenticated incorrectly–but please reauthenticate and try again.
+ * I’m sorry. I know who you are–I believe who you say you
+ * are–but you just don’t have permission to access this resource.
  *
  * Class UnauthorizedException
  * @package Dren\Exceptions
