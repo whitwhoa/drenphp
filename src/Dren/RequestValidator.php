@@ -43,6 +43,11 @@ abstract class RequestValidator
         return $this->errors;
     }
 
+    /*
+    Validate functionality has been defaulted to exit validation for a field once the first
+    failed method is hit. If you want to run every method regardless as to whether or not the
+    previous method was successful, prefix 'run_all' to the method chain
+    */
     public function validate() : bool
     {
         $this->setRules();
@@ -112,7 +117,6 @@ abstract class RequestValidator
                     (is_object($ef[1]) && get_class($ef[1]) === 'Dren\UploadedFile' && !$ef[1]->hasError()) ||
                     ($ef[1] !== null && $ef[1] !== '')
                 ){
-                    //dad($ef[1]);
                     // remove sometimes from methodChain
                     $updatedMethodChain = [];
                     foreach($methodChain as $m)
@@ -128,35 +132,57 @@ abstract class RequestValidator
                 }
             }
 
+            $runAll = \in_array('run_all', $methodChain);
 
             foreach($methodChain as $methodChainDetails)
             {
-                if(is_string($methodChainDetails))
+                $preMethodCallErrorsCount = $this->errors->count();
+                $fenceUp = false;
+
+                // If $methodChainDetails is not a string then it is a user defined callable. Run callable,
+                // and continue to next method in chain
+                if(!is_string($methodChainDetails))
                 {
-                    $fenceUp = false;
-                    if(str_starts_with($methodChainDetails, "#"))
+                    $methodChainDetails($this->requestData, $this->errors, $fenceUp);
+
+                    if($this->errors->count() > $preMethodCallErrorsCount)
                     {
-                        $fenceUp = true;
-                        $methodChainDetails = substr($methodChainDetails, 1);
+                        if($fenceUp)
+                            break 2;
+
+                        if(!$runAll)
+                            break;
                     }
 
-                    $methodChainDetails = explode(':', $methodChainDetails);
-                    $method = $methodChainDetails[0];
-                    $params = [];
-                    if(count($methodChainDetails) > 1)
-                        $params = explode(',', $methodChainDetails[1]);
-
-                    $preMethodCallErrorsCount = $this->errors->count();
-
-                    $this->$method(array_merge([$ef[0], $ef[1]], $params));
-
-                    if($fenceUp && ($this->errors->count() > $preMethodCallErrorsCount))
-                        break 2;
-                    else
-                        continue;
+                    continue;
                 }
 
-                $methodChainDetails($this->requestData, $this->errors);
+                // parse method chain details string to get our method and any parameters
+                if(str_starts_with($methodChainDetails, "#"))
+                {
+                    $fenceUp = true;
+                    $methodChainDetails = substr($methodChainDetails, 1);
+                }
+
+                $methodChainDetails = explode(':', $methodChainDetails);
+                $method = $methodChainDetails[0];
+                $params = [];
+                if(count($methodChainDetails) > 1)
+                    $params = explode(',', $methodChainDetails[1]);
+
+                // run previously deduced method passing in parameters
+                $this->$method(array_merge([$ef[0], $ef[1]], $params));
+
+                // do checks to determine what we should do if the previous method call added an error to the
+                // error list
+                if($this->errors->count() > $preMethodCallErrorsCount)
+                {
+                    if($fenceUp)
+                        break 2;
+
+                    if(!$runAll)
+                        break;
+                }
             }
         }
 
@@ -183,6 +209,14 @@ abstract class RequestValidator
 
     private function _expandFieldsRecursiveLoop($data, &$keys, &$index, $path) : void
     {
+//        echo '-------------------------------<br/>';
+//        echo '<pre>';
+//        echo '$data: ' . var_export($data, true) . '<br/>';
+//        echo '$keys: ' . var_export($keys, true) . '<br/>';
+//        echo '$index: ' . var_export($index, true) . '<br/>';
+//        echo '$path: ' . var_export($path, true) . '<br/>';
+//        echo '</pre>';
+
         if ($index >= count($keys))
             return;
 
@@ -192,7 +226,7 @@ abstract class RequestValidator
         if ($currentKey === '*')
         {
             $itemIndex = 0;
-            if($data && count($data) > 0)
+            if($data && \is_array($data) && count($data) > 0)
             {
                 foreach ($data as $item)
                 {
@@ -359,10 +393,7 @@ abstract class RequestValidator
     private function is_array(array $params) : void
     {
         if(\is_array($params[1]))
-        {
-            echo 'uh wtf<br/>';
             return;
-        }
 
         $this->_setErrorMessage('is_array', $params[0], $params[0] . ' must be an array');
     }
