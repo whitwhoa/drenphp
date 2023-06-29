@@ -52,7 +52,7 @@ class ValidationErrorContainer
         if(!array_key_exists($key, $this->errors))
             return [];
 
-        if(!str_contains($key, '.*'))
+        if(!str_contains($key, '[*]'))
             return $this->errors[$key];
 
         $matches = [];
@@ -78,13 +78,13 @@ class ValidationErrorContainer
     }
     private function _isFieldArrayPattern($pattern, $input) : bool
     {
-        // Replace '*' with regex to match any number value
-        $pattern = preg_replace('/\*/', '\d+', $pattern);
+        // Escape the pattern, then replace '[*]' with regex to match any number value enclosed by '[]'
+        $pattern = preg_replace('/\\\[\*\\\]/', '(\d+)', preg_quote($pattern, '/'));
 
         // Create the regex pattern by adding start and end delimiters
         $pattern = '/^' . $pattern . '$/';
 
-        return preg_match($pattern, $input, $matches);
+        return preg_match($pattern, $input);
     }
 
 }

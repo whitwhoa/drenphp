@@ -196,7 +196,6 @@ abstract class RequestValidator
             }
         }
 
-        //die;
         return !($this->errors->count() > 0);
     }
 
@@ -263,7 +262,7 @@ abstract class RequestValidator
         array_pop($path);
     }
 
-    function _expandFieldsProcessItem($item, &$keys, &$index, $path) : void
+    private function _expandFieldsProcessItem($item, &$keys, &$index, $path) : void
     {
         if ($index < count($keys) - 1)
         {
@@ -273,9 +272,15 @@ abstract class RequestValidator
         }
         else
         {
-            $this->expandedFields[] = [implode('.', $path), $item, (count($this->methodChains) - 1)];
+            $newPath = array_shift($path); // separate first element
+            foreach($path as $p){
+                $newPath .= '[' . $p . ']';  // add remaining elements with brackets
+            }
+
+            $this->expandedFields[] = [$newPath, $item, (count($this->methodChains) - 1)];
         }
     }
+
 
     private function _setErrorMessage($method, $field, $defaultMsg) : void
     {
