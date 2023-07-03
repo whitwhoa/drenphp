@@ -4,7 +4,7 @@ namespace Dren;
 
 use stdClass;
 
-abstract class RequestValidator
+abstract class FormDataValidator
 {
     abstract protected function setRules() : void;
     protected Request $request;

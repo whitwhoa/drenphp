@@ -12,15 +12,12 @@ class Router
     private array $routes = [];
     private string $privateDir;
     private string $requestURI;
-
-    private $routeFound = false;
-
     private string $controllerClassName;
     private string $controllerClassMethodName;
 
     private array $middleware = [];
 
-    private string $requestValidator = '';
+    private string $formDataValidator = '';
 
     private bool $cacheRoutes = true;
 
@@ -54,9 +51,9 @@ class Router
         return $this->middleware;
     }
 
-    public function getRequestValidator() : string
+    public function getFormDataValidator() : string
     {
-        return $this->requestValidator;
+        return $this->formDataValidator;
     }
 
     private function mapController(string $classAndMethod) : void
@@ -74,12 +71,12 @@ class Router
         }
     }
 
-    private function mapRequestValidator(string $validatorName) : void
+    private function mapFormDataValidator(string $validatorName) : void
     {
         if($validatorName !== '')
-            $this->requestValidator = 'App\RequestValidators\\' . $validatorName;
+            $this->formDataValidator = 'App\FormDataValidators\\' . $validatorName;
         else 
-            $this->requestValidator = '';
+            $this->formDataValidator = '';
     }
 
 //    private function generateRegexPattern(string $rawRoute) : string
@@ -175,13 +172,12 @@ class Router
 
         foreach($this->routes as $r)
         {
-
             if(preg_match($r[0][0], $this->requestURI))
             {
 
                 $this->mapController($r[1]);
                 $this->mapMiddleware(isset($r[2]) ? $r[2] : []);
-                $this->mapRequestValidator(isset($r[3]) ? $r[3] : '');
+                $this->mapFormDataValidator(isset($r[3]) ? $r[3] : '');
                 $this->setRouteParameters($this->requestURI, $r[0][1]);
 
                 return;

@@ -108,16 +108,16 @@ class App
 
             // Execute request validator. If provided and validate() returns false,
             // return a redirect or json response depending on the set failureResponseType
-            $rv = $this->router->getRequestValidator();
-            if($rv !== '')
+            $fdv = $this->router->getFormDataValidator();
+            if($fdv !== '')
             {
-                $rv = new $rv($this->request);
+                $fdv = new $fdv($this->request);
 
-                if(!$rv->validate())
+                if(!$fdv->validate())
                 {
                     if(!$this->request->isJsonRequest())
                     {
-                        $this->sessionManager->flashSave('errors', $rv->getErrors()->export());
+                        $this->sessionManager->flashSave('errors', $fdv->getErrors()->export());
                         $this->sessionManager->flashSave('old', $this->request->getGetPostData());
                         (new Response())->redirect($this->request->getReferrer())->send();
                         return;
@@ -126,7 +126,7 @@ class App
                     {
                         (new Response())->setCode(422)->json([
                             'message' => 'Unable to process request due to validation errors',
-                            'errors' => $rv->getErrors()->export()
+                            'errors' => $fdv->getErrors()->export()
                         ])->send();
                         return;
                     }
