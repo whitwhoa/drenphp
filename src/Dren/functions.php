@@ -161,6 +161,11 @@ function end_section() : string
     return ob_get_clean();
 }
 
+function echo_safe($val) : void
+{
+    echo htmlspecialchars($val);
+}
+
 /**
  * Return an array of all states where keys are 2 letter
  * abbreviations and values are whole names

@@ -9,6 +9,9 @@
         "ext-fileinfo": "*",
         "ext-openssl": "*"
     },
+    "suggest": {
+        "ext-redis": "Required for RedisSessionManager"
+    },
     "autoload": {
 		"files": [
           "src/Dren/functions.php"
