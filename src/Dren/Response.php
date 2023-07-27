@@ -56,6 +56,9 @@ class Response
 
     public function send() : void
     {
+        //TODO: this will need to check if there is any data or flash data that needs to be written, then obtain
+        // a lock, write, and release the lock, checking that the session_id is correct (hasn't been updated since
+        // this request has been processing (old session would contain new session_id))
         if($this->sessionManager)
             $this->sessionManager->persist();
 

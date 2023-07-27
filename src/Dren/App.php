@@ -18,7 +18,6 @@ class App
     private Request $request;
     private ?SessionManager $sessionManager; // SessionManager
     private ViewCompiler $viewCompiler; // ViewCompiler
-    private Router $router; // Router
 
     private HttpClient $httpClient;
 
@@ -64,7 +63,7 @@ class App
         $this->viewCompiler = new ViewCompiler($privateDir, $this->sessionManager);
 
         // Initialize router
-        $this->router = new Router($privateDir, $this->request->getURI(), $this->config->cache_routes);
+        //$this->router = new Router($privateDir, $this->request->getURI(), $this->config->cache_routes);
 
         // Initialize HttpClient
         $this->httpClient = new HttpClient($privateDir . '/storage/httpclient');
@@ -90,8 +89,12 @@ class App
         try{
 
             // Load routes, either from files or cache file
-            $this->router->generateRoutes();
+            //$this->router->generateRoutes();
+            // TODO: have to load in the routes defined outside of the core here somehow, then perform the lookup, and
+            // either throw an exception or set the active route in Router
 
+
+            // TODO: refactor Request to hold a Route instead of just the array of route parameters
             $this->request->setRouteParameters($this->router->getRouteParameters());
 
             // Execute each middleware. If the return type is Dren\Response, send the response
@@ -106,6 +109,8 @@ class App
                 }
             }
 
+            //TODO: why are we not checking if the request is json above like we do below???? Probably need to do that?
+
             // Execute request validator. If provided and validate() returns false,
             // return a redirect or json response depending on the set failureResponseType
             $fdv = $this->router->getFormDataValidator();
@@ -115,19 +120,19 @@ class App
 
                 if(!$fdv->validate())
                 {
-                    if(!$this->request->isJsonRequest())
-                    {
-                        $this->sessionManager->flashSave('errors', $fdv->getErrors()->export());
-                        $this->sessionManager->flashSave('old', $this->request->getGetPostData());
-                        (new Response())->redirect($this->request->getReferrer())->send();
-                        return;
-                    }
-                    else
+                    if($this->request->isJsonRequest())
                     {
                         (new Response())->setCode(422)->json([
                             'message' => 'Unable to process request due to validation errors',
                             'errors' => $fdv->getErrors()->export()
                         ])->send();
+                        return;
+                    }
+                    else
+                    {
+                        $this->sessionManager->flashSave('errors', $fdv->getErrors()->export());
+                        $this->sessionManager->flashSave('old', $this->request->getGetPostData());
+                        (new Response())->redirect($this->request->getReferrer())->send();
                         return;
                     }
                 }
@@ -142,12 +147,7 @@ class App
         }
         catch(Forbidden|NotFound|Unauthorized|UnprocessableEntity $e)
         {
-            if(!$this->request->isJsonRequest())
-            {
-                (new Response())->html($this->viewCompiler->compile('errors.' . $e->getCode(),
-                    ['detailedMessage' => $e->getMessage()]))->send();
-            }
-            else
+            if($this->request->isJsonRequest())
             {
                 $message = '';
                 switch ($e->getCode())
@@ -165,26 +165,37 @@ class App
                 (new Response())->setCode($e->getCode())->json([
                     'message' => $message
                 ])->send();
-
+            }
+            else
+            {
+                (new Response())->html($this->viewCompiler->compile('errors.' . $e->getCode(),
+                    ['detailedMessage' => $e->getMessage()]))->send();
             }
         }
         catch (Exception $e)
         {
             error_log($e->getMessage() . ":" . $e->getTraceAsString());
 
-            if(!$this->request->isJsonRequest())
-            {
-                (new Response())->setCode(500)->html($this->viewCompiler->compile('errors.500',
-                    ['detailedMessage' => 'An unexpected error was encountered while processing your request.']
-                ))->send();
-            }
-            else
+            if($this->request->isJsonRequest())
             {
                 (new Response())->setCode(500)->json([
                     'message' => 'An unexpected error was encountered while processing your request.'
                 ])->send();
             }
+            else
+            {
+                (new Response())->setCode(500)->html($this->viewCompiler->compile('errors.500',
+                    ['detailedMessage' => 'An unexpected error was encountered while processing your request.']
+                ))->send();
+            }
          }
+// TODO:
+//         finally
+//         {
+//             // clear any open locks that have been set by this process id, for this device or user,
+                // and actually, you might not even do this here and just rely on the register_shutdown_function()
+                // which we will need to implement
+//         }
     }
 
     public function getPrivateDir() 

@@ -178,6 +178,8 @@ class Request
         foreach($this->files as $k => $v)
             if($v->getFormName() == $name)
                 return $v;
+
+        return null;
     }
 
     /**
