@@ -59,16 +59,19 @@ class Router
         return self::$instance;
     }
 
-    public static function setActiveRoute(string $requestedUri): void
+    public static function setActiveRoute(string $requestUri, string $requestMethod): void
     {
         self::init();
 
         $i = 0;
         foreach(self::$instance->routes as $r)
         {
-           if(preg_match($r->getUriRegex(), $requestedUri))
+           if(preg_match($r->getUriRegex(), $requestUri))
            {
-               $r->setUriParameters();
+               if($r->getRequestMethod() !== strtolower($requestMethod))
+                   throw new NotFound('Route not found. Incompatible request method provided.');
+
+               $r->setUriParams($requestUri);
                self::$instance->activeRoute = $i;
                return;
            }
@@ -88,6 +91,15 @@ class Router
     {
         $route = end($this->routes);
         $route->setRequestMethod('get');
+        $route->setUri($uriString);
+
+        return $this;
+    }
+
+    public function post(string $uriString) : Router
+    {
+        $route = end($this->routes);
+        $route->setRequestMethod('post');
         $route->setUri($uriString);
 
         return $this;

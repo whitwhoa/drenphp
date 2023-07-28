@@ -15,7 +15,7 @@ class Request
 
     private array $files = [];
 
-    private array $routeParameters = [];
+    private ?Route $route;
 
     private array $allowableMimes = [];
 
@@ -30,6 +30,7 @@ class Request
         $this->setPostData();
         $this->setReferrer();
         $this->setFiles();
+        $this->route = null; // null until value provided in App::execute()
     }
 
     public function getMethod() : string
@@ -43,11 +44,11 @@ class Request
     }
 
     /**
-     * called from App->execute()
+     * called from App->execute() after call to Router::setActiveRoute()
      */
-    public function setRouteParameters(array $routeParams) : void
+    public function setRoute(Route $route) : void
     {
-        $this->routeParameters = $routeParams;
+        $this->route = $route;
     }
 
     function isJsonRequest() : bool
@@ -61,8 +62,8 @@ class Request
 
     public function getRouteParam(string $paramName) : mixed
     {
-        if(array_key_exists($paramName, $this->routeParameters))
-            return $this->routeParameters[$paramName];
+        if(array_key_exists($paramName, $this->route->getUriParams()))
+            return $this->route->getUriParams()[$paramName];
         else
             return null;
     }

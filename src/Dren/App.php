@@ -86,19 +86,16 @@ class App
 
     public function execute() : void
     {
-        try{
+        try
+        {
+            // Do route lookup or throw not found exception
+            Router::setActiveRoute($this->request->getURI(), $this->request->getMethod());
 
-            // Load routes, either from files or cache file
-            //$this->router->generateRoutes();
-            // TODO: have to load in the routes defined outside of the core here somehow, then perform the lookup, and
-            // either throw an exception or set the active route in Router
-
-
-            // TODO: refactor Request to hold a Route instead of just the array of route parameters
-            $this->request->setRouteParameters($this->router->getRouteParameters());
+            // Give request an instance of the active route
+            $this->request->setRoute(Router::getActiveRoute());
 
             // Execute each middleware. If the return type is Dren\Response, send the response
-            foreach($this->router->getMiddleware() as $m)
+            foreach(Router::getActiveRoute()->getMiddleware() as $m)
             {
                 $middlewareResponse = (new $m())->handle();
 
@@ -109,12 +106,14 @@ class App
                 }
             }
 
-            //TODO: why are we not checking if the request is json above like we do below???? Probably need to do that?
+            //Q: why are we not checking if the request is json above like we do below????
+            //A: because those cases are dependent on the middleware logic, thus that condition needs to be checked
+            //      within each specific middleware if it is required
 
             // Execute request validator. If provided and validate() returns false,
             // return a redirect or json response depending on the set failureResponseType
-            $fdv = $this->router->getFormDataValidator();
-            if($fdv !== '')
+            $fdv = Router::getActiveRoute()->getFormDataValidator();
+            if($fdv)
             {
                 $fdv = new $fdv($this->request);
 
@@ -140,8 +139,8 @@ class App
 
             // Execute the given method for the given controller class and send its
             // response (as every controller method returns a Response object)
-            $class = $this->router->getControllerClassName();
-            $method = $this->router->getControllerClassMethodName();
+            $class = Router::getActiveRoute()->getController();
+            $method = Router::getActiveRoute()->getMethod();
             (new $class())->$method()->send();
 
         }

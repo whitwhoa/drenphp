@@ -16,7 +16,7 @@ class Route
     private ?string $controller;
     private ?string $method;
     private array $middleware;
-    private ?string $formValidator;
+    private ?string $formDataValidator;
 
     public function __construct()
     {
@@ -30,7 +30,7 @@ class Route
         $this->controller = null;
         $this->method = null;
         $this->middleware = [];
-        $this->formValidator = null;
+        $this->formDataValidator = null;
     }
 
     // SETTERS
@@ -68,17 +68,17 @@ class Route
         }
     }
 
-    public function setFormValidator(string $formValidator): void
+    public function setFormDataValidator(string $formDataValidator): void
     {
-        $this->formValidator = 'App\FormDataValidators\\' . $formValidator;
+        $this->formDataValidator = 'App\FormDataValidators\\' . $formDataValidator;
     }
 
     /*
-    * Returns an array of [[placeholderName=>value]]. Don't call this until we've matched a route in Router
+    * Called by router after a valid route has been identified
     * */
-    public function setUriParams(): void
+    public function setUriParams(string $requestUri): void
     {
-        $uri = $this->uri;
+        $uri = $requestUri;
         $placeholders = $this->uriParamPlaceholders;
 
         if(count($placeholders) == 0)
@@ -139,9 +139,9 @@ class Route
         return $this->middleware;
     }
 
-    public function getFormValidator(): ?string
+    public function getFormDataValidator(): ?string
     {
-        return $this->formValidator;
+        return $this->formDataValidator;
     }
 
     public function getUriParams(): array
