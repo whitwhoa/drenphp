@@ -17,6 +17,8 @@ class Request
 
     private ?Route $route;
 
+    private array $headers = [];
+
     private array $allowableMimes = [];
 
     public function __construct(array $am)
@@ -30,6 +32,7 @@ class Request
         $this->setPostData();
         $this->setReferrer();
         $this->setFiles();
+        $this->setHeaders();
         $this->route = null; // null until value provided in App::execute()
     }
 
@@ -51,7 +54,27 @@ class Request
         $this->route = $route;
     }
 
-    function isJsonRequest() : bool
+    private function setHeaders() : void
+    {
+        foreach ($_SERVER as $key => $value)
+        {
+            if (str_starts_with($key, 'HTTP_'))
+            {
+                $header = str_replace(' ', '-', ucwords(str_replace('_', ' ', substr($key, 5))));
+                $this->headers[$header] = $value;
+            }
+        }
+    }
+
+    public function getHeader(string $name) : ?string
+    {
+        if(isset($this->headers[$name]))
+            return $this->headers[$name];
+
+        return null;
+    }
+
+    public function isJsonRequest() : bool
     {
         $headers = getallheaders();
         if (isset($headers['Accept']))
@@ -94,6 +117,11 @@ class Request
             return $this->cookies[$name];
 
         return null;
+    }
+
+    public function getRoute() : Route
+    {
+        return $this->route;
     }
 
     public function getReferrer() : string

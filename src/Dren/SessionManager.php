@@ -4,200 +4,155 @@
 namespace Dren;
 
 
-/**
- * Session manager
- *
- * Currently pretty basic.
- *
- * @package Dren\Database
- */
+use Exception;
+
 class SessionManager
 {
-    private $config = null;
-    private $token = null; // the session token or null if none given
-    private $session = null; // the session data object
-    private $flashed = null;
+    private object $config;
+    private ?Request $request;
 
+    private ?string $session_id;
+    private ?string $remember_id;
 
-    public function __construct($sessionConfig, $token)
+    private ?MySQLCon $db;
+
+    private bool $session_id_lock_issued;
+    private bool $remember_id_lock_issued;
+
+    public function __construct(object $sessionConfig)
     {
         $this->config = $sessionConfig;
-        $this->token = $token;
+        $this->session_id = null;
+        $this->remember_id = null;
+        $this->request = null; // null here because we can't completely initialize until after we receive request
+        $this->db = null;
+        $this->session_id_lock_issued = false;
+        $this->remember_id_lock_issued = false;
+    }
 
-        if(!$this->token)
+    public function setDb(?MySQLCon $db): void
+    {
+        $this->db = $db;
+    }
+
+    public function init(Request $request)
+    {
+        $this->request = $request;
+
+        $this->getTokensFromClient();
+
+        if($this->session_id !== null)
         {
-            $this->startSession();
-            return;
+            // update session
+            // return
         }
 
-        $this->loadSession();
-    }
-
-
-    /**
-     * Destroy the existing session and regenerate a new one.
-     *
-     * 1.) Destroy the existing session
-     *      a.) Remove from user's browser
-     *      b.) Remove from persistence layer
-     *      c.) Remove $this->token
-     *      d.) If not $keepData then set $this->session = null
-     *
-     * 2.) Start a new session
-     *
-     *
-     * @param bool $keepData
-     * @param int|null $userId
-     */
-    public function regenerate(bool $keepData = false, int $userId = null) : void
-    {
-        setcookie($this->token, '', time() - 3600, '/');
-
-        switch($this->config->type)
+        if($this->remember_id !== null)
         {
-            case 'file':
-            default:
-                if(file_exists($this->config->directory . '/' . $this->token))
-                    unlink($this->config->directory . '/' . $this->token);
+            // authenticateViaRememberId()
+            // return
         }
 
-        $this->token = null;
-
-        if(!$keepData)
-            $this->session->data = null;
-        
-        $this->startSession($userId);
     }
 
-    /**
-     *
-     *
-     * @return int|null
-     */
-    public function getUserId() : ?int
+    private function getTokensFromClient(): void
     {
-       return $this->session->user_id;
-    }
+        $unverified_session_id = null;
+        $unverified_remember_id = null;
 
-    /**
-     * @param string $key
-     * @return mixed
-     */
-    public function get(string $key)
-    {
-        if(isset($this->flashed->$key))
-            return $this->flashed->$key;
-        
-        if(isset($this->session->data->$key))
-            return $this->session->data->$key;
-        
-        return null;
-    }
-
-    /**
-     * Save the given $data to $this->session->data->$key
-     *
-     *
-     * @param string $key
-     * @param mixed $data
-     */
-    public function save(string $key, $data) : void
-    {
-        $this->session->data->$key = $data;
-    }
-
-    /**
-     * Save given $data to $this->session->flash->$key
-     *
-     * @param string $key
-     * @param $data
-     */
-    public function flashSave(string $key, $data) : void
-    {
-        $this->session->flash->$key = $data;
-    }
-
-    /**
-     * Save the data to $this->config->type
-     */
-    public function persist() : void
-    {
-        switch($this->config->type)
+        if($this->request->getRoute()->getRouteType() === 'web')
         {
-            case 'file':
-            default:
-                file_put_contents($this->config->directory . '/' . $this->token, json_encode($this->session));
-                setcookie($this->config->name, $this->token, time() + $this->config->lifetime, '/'); // reset lifetime
+            if($this->request->getCookie('session_id'))
+                $unverified_session_id = $this->decryptAndVerifyToken($this->request->getCookie('session_id'));
+
+            if($this->request->getCookie('remember_id'))
+                $unverified_remember_id = $this->decryptAndVerifyToken($this->request->getCookie('remember_id'));
         }
-    }
-
-    /**
-     * Wipe flash data
-     */
-    private function clearFlash() : void
-    {
-        $this->session->flash = (object)[];
-    }
-
-    /**
-     * Load $this->session data depending on which persistence engine is being used
-     */
-    private function loadSession() : void
-    {
-        switch($this->config->type)
+        elseif($this->request->getRoute()->getRouteType() === 'mobile')
         {
-            case 'file':
-            default:
-                $this->loadFileSession();
+            if($this->request->getHeader('Session-Id'))
+                $unverified_session_id = $this->decryptAndVerifyToken($this->request->getHeader('Session-Id'));
+
+            if($this->request->getHeader('Remember-Id'))
+                $unverified_remember_id = $this->decryptAndVerifyToken($this->request->getHeader('Remember-Id'));
+        }
+
+        // if session id was provided, but it's corresponding file has been removed from the system, set it to null
+        if($unverified_session_id !== null && !file_exists($this->config->directory . '/' . $unverified_session_id))
+            $unverified_session_id = null;
+
+        // if remember id was provided, but there is no corresponding record in remember_ids table, set it to null
+        if($unverified_remember_id !== null)
+        {
+            $result = $this->db
+                ->query("SELECT * FROM remember_ids WHERE remember_id = ?", [$unverified_remember_id])
+                ->singleAsObj()
+                ->exec();
+
+            if(!$result)
+                $unverified_remember_id = null;
+        }
+
+        // At this point, if a session_id or remember_id token has been provided, it has been decrypted and its
+        // signature has been verified. It has also been verified that the corresponding entry within its datastore
+        // still exists.
+        $this->session_id = $unverified_session_id;
+        $this->remember_id = $unverified_remember_id;
+    }
+
+    private function decryptAndVerifyToken($encryptedTokenAndSignatureWithIv, $cipherMethod = 'AES-256-CBC', $tokenLength = 16): ?string
+    {
+        try
+        {
+            if($encryptedTokenAndSignatureWithIv === null || $encryptedTokenAndSignatureWithIv === '')
+                return null;
+
+            // Split the encrypted token and signature and the IV
+            $parts = explode('::', base64_decode($encryptedTokenAndSignatureWithIv), 2);
+
+            // If there aren't two parts, something's wrong, so return null
+            if (count($parts) < 2)
+                return null;
+
+            list($encryptedTokenAndSignature, $iv) = $parts;
+
+            // Decrypt the token and the signature
+            $tokenAndSignature = openssl_decrypt($encryptedTokenAndSignature, $cipherMethod, $this->config->signature_secret, 0, $iv);
+
+            if ($tokenAndSignature === false)
+                return null; // Decryption failed, probably because the encrypted data was tampered with
+
+            // Split the token and the signature
+            $token = substr($tokenAndSignature, 0, $tokenLength);
+            $receivedSignature = substr($tokenAndSignature, $tokenLength);
+
+            // Generate the expected signature
+            $expectedSignature = substr(hash_hmac('sha256', $token, $this->config->signature_secret), 0, $tokenLength);
+
+            // Verify the signature
+            if (hash_equals($expectedSignature, $receivedSignature))
+                return $token; // Signature is valid, return the token
+            else
+                return null; // Signature is invalid
+        }
+        catch (Exception $e)
+        {
+            return null;
         }
     }
 
-    /**
-     * > if $this->token not an existing file, then the token is invalid, so we regenerate the session
-     *
-     * > if there is an existing file with a name equal to $this->token:
-     *      > decode it's value into $this->session
-     *      > update it's last_active property
-     *      > set $this->flashed equal to the value of $this->session->flash, then wipe flash
-     */
-    private function loadFileSession() : void
+    private function updateSession(): void
     {
-        if(!file_exists($this->config->directory . '/' . $this->token))
-        {
-            $this->regenerate();
-            return;
-        }
-        $this->session = json_decode(file_get_contents($this->config->directory . '/' . $this->token));
 
-        //dad($this->session);
-
-        $this->session->last_active = time();
-
-        $this->flashed = $this->session->flash;
-
-        $this->clearFlash();
     }
 
-    /**
-     * > Generate a guid to use as the session token
-     * > if $this->config->type === 'file' create a new file in $this->config->directory where
-     *      the name of the file is equal to $this->token and content equal to json data
-     * > call setcookie($this->config->name, $this->token) to send cookie during next response.
-     * @param int|null $userId
-     */
-    private function startSession(int $userId = null) : void
+    private function authenticateViaRememberId(): void
     {
-        $this->token = uuid_create_v4();
 
-        $this->session = (object)[
-            'created_at' => time(),
-            'last_active' => time(),
-            'user_id' => $userId,
-            'flash' => (object)[],
-            'data' => (!isset($this->session) ||
-                !isset($this->session->data) ||
-                $this->session->data === NULL) ?(object)[] : $this->session->data
-        ];
     }
+
+
+
+
 
 }

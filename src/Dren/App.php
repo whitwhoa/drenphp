@@ -47,32 +47,26 @@ class App
         $this->request = new Request($this->config->allowed_file_upload_mimes);
 
         // Initialize session manager if enabled within config
-        if($this->config->session->enabled)
-        {
-            if(!$this->config->session->name)
-                $this->config->session->name = strtoupper($this->config->app_name) . '_SESSION';
-            
-            $this->sessionManager = new SessionManager($this->config->session, $this->request->getCookie($this->config->session->name));
-        } 
-        else 
-        {
-            $this->sessionManager = null;
-        }
+        if(!$this->config->session->name)
+            $this->config->session->name = strtoupper($this->config->app_name) . '_SESSION';
+
+        $this->sessionManager = new SessionManager($this->config->session);
 
         // Initialize view compiler
         $this->viewCompiler = new ViewCompiler($privateDir, $this->sessionManager);
 
-        // Initialize router
-        //$this->router = new Router($privateDir, $this->request->getURI(), $this->config->cache_routes);
-
         // Initialize HttpClient
-        $this->httpClient = new HttpClient($privateDir . '/storage/httpclient');
+        $this->httpClient = new HttpClient($privateDir . '/storage/httpclient'); //TODO: this should be a config value
 
         // Initialize database if provided within config
         if(isset($this->config->databases) && count($this->config->databases) > 0)
             $this->db = new MysqlConnectionManager($this->config->databases);
-        else 
+        else
             $this->db = null;
+
+        // Pass database connection to session manager if one was created
+        if($this->db !== null)
+            $this->sessionManager->setDb($this->db->get());
     }    
 
     /**
@@ -82,6 +76,9 @@ class App
     {
         if(isset($this->config->session->directory))
             $this->config->session->directory = $this->privateDir . $this->config->session->directory;
+
+        if(isset($this->config->session->rid_lock_dir))
+            $this->config->session->rid_lock_dir = $this->privateDir . $this->config->session->rid_lock_dir;
     }
 
     public function execute() : void
@@ -93,6 +90,9 @@ class App
 
             // Give request an instance of the active route
             $this->request->setRoute(Router::getActiveRoute());
+
+            // Process session
+            $this->sessionManager->init($this->request);
 
             // Execute each middleware. If the return type is Dren\Response, send the response
             foreach(Router::getActiveRoute()->getMiddleware() as $m)
