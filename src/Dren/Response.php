@@ -56,11 +56,17 @@ class Response
 
     public function send() : void
     {
-        //TODO: this will need to check if there is any data or flash data that needs to be written, then obtain
-        // a lock, write, and release the lock, checking that the session_id is correct (hasn't been updated since
-        // this request has been processing (old session would contain new session_id))
-        if($this->sessionManager)
-            $this->sessionManager->persist();
+        //TODO: We need to think about how we want to handle this
+        // In SessionManager, GET requests will update the required session data, save to disc, then release lock
+        // POST requests that contain a valid session_id need to update the required session data, keep lock open
+        // for the duration of the request, then persist any modified session data and release the lock...ok, cool,
+        // so how we going to do that...
+        // We can have logic in SessionManager such that whenever we call a member that modifies the state of the session
+        // from a GET request, that we throw an exception, this would keep anyone from accidentally modifying session
+        // state in a GET request, and since every POST request will block all other requests, it should be safe to
+        // persist the data at this point, but instead of calling a persist() member, lets call it something like
+        // finalizeSessionState() which checks if we're doing a POST or GET and only executes if we're POSTing
+        $this->sessionManager->persist();
 
         if($this->redirect)
         {

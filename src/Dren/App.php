@@ -11,9 +11,9 @@ use Dren\Exceptions\UnprocessableEntity;
 class App
 {
     private static $instance = null;
-
     private string $privateDir;
     private object $config;
+    private SecurityUtility $securityUtility;
     private ?MysqlConnectionManager $db; // MySQLConnectionManager
     private Request $request;
     private ?SessionManager $sessionManager; // SessionManager
@@ -37,11 +37,20 @@ class App
         return self::$instance;
     }
 
+    /**
+     * Insure all members which can be accessed via singleton are initialized in the order in which they need to be
+     * initialized and passed to any other requiring classes
+     *
+     * @param string $privateDir
+     * @throws Exception
+     */
     private function __construct(string $privateDir)
     {
         $this->privateDir = $privateDir;
         $this->config = (require_once $privateDir . '/config.php');
         $this->injectPrivateDirIntoConfig();
+
+        $this->securityUtility = new SecurityUtility($this->config->encryption_key);
 
         // Initialize request
         $this->request = new Request($this->config->allowed_file_upload_mimes);
@@ -235,5 +244,10 @@ class App
     public function getHttpClient()
     {
         return $this->httpClient;
+    }
+
+    public function getSecurityUtility()
+    {
+        return $this->securityUtility;
     }
 }
