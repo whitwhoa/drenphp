@@ -68,7 +68,7 @@ class Router
         {
            if(preg_match($r->getUriRegex(), $requestUri))
            {
-               if($r->getRequestMethod() !== strtolower($requestMethod))
+               if($r->getRequestMethod() !== strtoupper($requestMethod))
                    throw new NotFound('Route not found. Incompatible request method provided.');
 
                $r->setUriParams($requestUri);
@@ -90,7 +90,7 @@ class Router
     public function get(string $uriString) : Router
     {
         $route = end($this->routes);
-        $route->setRequestMethod('get');
+        $route->setRequestMethod('GET');
         $route->setUri($uriString);
 
         return $this;
@@ -99,7 +99,7 @@ class Router
     public function post(string $uriString) : Router
     {
         $route = end($this->routes);
-        $route->setRequestMethod('post');
+        $route->setRequestMethod('POST');
         $route->setUri($uriString);
 
         return $this;

@@ -72,10 +72,6 @@ class App
             $this->db = new MysqlConnectionManager($this->config->databases);
         else
             $this->db = null;
-
-        // Pass database connection to session manager if one was created
-        if($this->db !== null)
-            $this->sessionManager->setDb($this->db->get());
     }    
 
     /**

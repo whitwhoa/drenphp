@@ -11,12 +11,12 @@ class SessionManager
     private object $config;
     private SecurityUtility $securityUtility;
     private ?Request $request;
-    private ?string $session_id;
-    private ?string $remember_id;
+    private ?string $sessionId;
 
-    private ?MySQLCon $db;
-
-    private bool $session_id_lock_issued;
+    /**
+     * @var resource
+     */
+    private mixed $sessionFileResource;
 
     private ?object $session;
 
@@ -24,33 +24,27 @@ class SessionManager
     {
         $this->config = $sessionConfig;
         $this->securityUtility = $su;
-        $this->session_id = null;
-        $this->remember_id = null;
+        $this->sessionId = null;
         $this->request = null; // null here because we can't completely initialize until after we receive request
-        $this->db = null;
-        $this->session_id_lock_issued = false;
+        $this->sessionFileResource = null;
         $this->session = null;
-    }
-
-    public function setDb(?MySQLCon $db): void
-    {
-        $this->db = $db;
     }
 
     public function init(Request $request)
     {
         $this->request = $request;
 
-        $this->getTokensFromClient();
+        $this->getTokenFromClient();
 
-        if($this->session_id !== null)
+        if($this->sessionId !== null)
         {
+            // if we have made it here, then the session_id is valid, and there is a corresponding file for it
             // update session
             // return
         }
     }
 
-    private function getTokensFromClient(): void
+    private function getTokenFromClient(): void
     {
         $unverified_session_id = null;
 
@@ -73,33 +67,92 @@ class SessionManager
 
         // At this point, if session_id token has been provided, it has been decrypted and its signature has been
         // verified. It has also been verified that the corresponding entry within its datastore still exists.
-        $this->session_id = $unverified_session_id;
+        $this->sessionId = $unverified_session_id;
+    }
+
+    private function openFileAndLock(string $filename): mixed// @var resource
+    {
+        $fileResource = fopen($filename, 'r+'); // Open the file for reading and writing
+
+        flock($fileResource, LOCK_EX); // Attempt to acquire an exclusive lock, block and wait if one cannot be acquired
+        clearstatcache(true, $filename); // Clear stat cache for the file
+        $contents = fread($fileResource, filesize($filename)); // Read the entire file
+        $this->session = json_decode($contents);
+
+        return $fileResource;
+    }
+
+    private function closeFileAndReleaseLock(mixed $fileResource): void
+    {
+        flock($fileResource, LOCK_UN); // Release the lock
+        fclose($fileResource); // Close the file
     }
 
     private function updateSession(): void
     {
+        $fileResource = $this->openFileAndLock($this->config->directory . '/' . $this->sessionId);
 
-    }
+        // content of session file data store loaded into memory as $this->session value
+        // holding lock for $this->sessionId file
 
-    private function authenticateViaRememberId(): void
-    {
+        // Has session token expired?
+        if(!(($this->session->issued_at + $this->session->valid_for) >= time()))
+        {
+            // token still valid
+            $this->sessionFileResource = $fileResource;
+
+            // If GET request, then update the session's last_used property and release the lock
+            if($this->request->getRoute()->getRequestMethod() === 'GET')
+                $this->terminate();
+
+            // If POST nothing further required as the lock will remain open throughout the request and terminated
+            // right before sending the response
+            return;
+        }
+
+        // If we have made it here, then the session token has expired
+
+        // Is session token valid for re-issuance?
+        if(!((time() - $this->session->last_used) <= $this->session->allowed_inactivity))
+        {
+            // Token is not valid for re-issuance
+            $this->session_id = null;
+            return;
+        }
+
+        // Check if token is in liminal state
 
     }
 
     /**
-     * Generates a new session token and corresponding filesystem datastore
+     * Updates the session's last_used property, persists session to file data store, releases file lock
      *
-     * @param int|null $account_id
+     * @return void
+     */
+    public function terminate(): void
+    {
+        $this->session->last_used = time();
+        ftruncate($this->sessionFileResource, 0); // Truncate file to zero length
+        rewind($this->sessionFileResource); // Rewind the file pointer
+        fwrite($this->sessionFileResource, json_encode($this->session)); // Write the new content
+        $this->closeFileAndReleaseLock($this->sessionFileResource);
+    }
+
+    /**
+     * Generates a new session token and corresponding filesystem datastore, then returns token. Does not
+     * set token in response data, that needs to be handled by calling function if it is required
+     *
+     * @param int|null $accountId
      * @param string|null $accountType
      * @return string
      */
-    private function generateNewSession(?int $account_id = null,?string $accountType = null): string
+    private function generateNewSession(?int $accountId = null,?string $accountType = null): string
     {
         // Generate the new signed session_id token
         $token = $this->securityUtility->generateSignedToken();
 
         $data = json_encode([
-            'account_id' => $account_id,
+            'account_id' => $accountId,
             'account_type' => $accountType,
             'issued_at' => time(),
             'last_used' => time(),
@@ -117,7 +170,7 @@ class SessionManager
         // between strictly new first time generations, and updates, on updates we have to modify the data with the
         // previous session's data and then lock on the new file, whereas a new generation does not require this
         // (because it's the first request generating the session and the client has yet to acknowledge that it has
-        // received the token by sending another request...yeah, that sounds right...)
+        // received the token by sending another request.)
 
         return $token;
     }
@@ -130,7 +183,7 @@ class SessionManager
     private function setClientSessionId(): void
     {
         // encrypt token for storage on client
-        $encryptedToken = $this->securityUtility->encryptString($this->session_id);
+        $encryptedToken = $this->securityUtility->encryptString($this->sessionId);
 
         if($this->request->getRoute()->getRouteType() === 'web')
         {
@@ -153,26 +206,15 @@ class SessionManager
      * We would just handle it the same way we would if the csrf token had expired, which hell it would be anyway, it's
      * the same thing...
      *
-     * @param int|null $account_id
+     * @param int|null $accountId
      * @param string|null $accountType
      * @return void
      */
-    public function startNewSession(?int $account_id = null, ?string $accountType = null): void
+    public function startNewSession(?int $accountId = null, ?string $accountType = null): void
     {
-        $this->session_id = $this->generateNewSession($account_id, $accountType);
-        $this->session = json_decode(file_get_contents($this->config->directory . '/' . $this->session_id));
+        $this->sessionId = $this->generateNewSession($accountId, $accountType);
+        $this->session = json_decode(file_get_contents($this->config->directory . '/' . $this->sessionId));
         $this->setClientSessionId();
     }
-
-    /**
-     * Called
-     *
-     * @return void
-     */
-    public function persist(): void
-    {
-
-    }
-
 
 }
