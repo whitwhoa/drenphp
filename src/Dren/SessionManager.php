@@ -30,17 +30,23 @@ class SessionManager
         $this->session = null;
     }
 
-    public function init(Request $request)
+    /**
+     * @throws Exception
+     */
+    public function loadSession(Request $request): void
     {
-        $this->request = $request;
-
-        $this->getTokenFromClient();
-
-        if($this->sessionId !== null)
+        try
         {
-            // if we have made it here, then the session_id is valid, and there is a corresponding file for it
-            // update session
-            // return
+            $this->request = $request;
+
+            $this->getTokenFromClient();
+
+            if($this->sessionId !== null)
+                $this->updateSession();
+        }
+        catch (Exception $e)
+        {
+            throw new Exception('Something went wrong attempting to load session: ' . $e->getMessage());
         }
     }
 
@@ -61,24 +67,31 @@ class SessionManager
                     $this->request->getHeader($this->config->mobile_client_name));
         }
 
-        // if session id was provided, but it's corresponding file has been removed from the system, set it to null
-        if($unverified_session_id !== null && !file_exists($this->config->directory . '/' . $unverified_session_id))
-            $unverified_session_id = null;
-
-        // At this point, if session_id token has been provided, it has been decrypted and its signature has been
-        // verified. It has also been verified that the corresponding entry within its datastore still exists.
+        // At this point, if session_id token has been provided, it has been decrypted and its signature
+        // has been verified.
         $this->sessionId = $unverified_session_id;
     }
 
+    /**
+     * @throws Exception
+     */
     private function updateSession(): void
     {
         $fileResource = $this->openSessionLock($this->sessionId);
+
+        // If we were unable to get a file resource, then it's likely that the file has been removed, so we treat
+        // this request as if it did not send a session token.
+        if(!$fileResource)
+        {
+            $this->sessionId = null;
+            return;
+        }
 
         // content of session file data store loaded into memory as $this->session value
         // holding lock for $this->sessionId file
 
         // Has session token expired?
-        if(($this->session->issued_at + $this->session->valid_for) < time())
+        if(($this->session->issued_at + $this->session->valid_for) > time())
         {
             // Token still valid
 
@@ -115,7 +128,13 @@ class SessionManager
             }
 
             $this->sessionId = $this->session->updated_token;
-            $this->sessionFileResource = $this->openSessionLock($this->sessionId);
+            $newFileResource = $this->openSessionLock($this->sessionId);
+
+            if(!$newFileResource)
+                throw new Exception('Unable to open session lock for token. This should never happen. Code:Dm4mvHmJiF');
+
+            $this->sessionFileResource = $newFileResource;
+
             $this->closeFileAndReleaseLock($fileResource); // release lock of expired session after obtaining lock for new session
             $this->setClientSessionId();
 
@@ -155,7 +174,13 @@ class SessionManager
 
         // open lock on new session token
         $this->sessionId = $newToken;
-        $this->sessionFileResource = $this->openSessionLock($this->sessionId);
+        $newFileResource = $this->openSessionLock($this->sessionId);
+
+        if(!$newFileResource)
+            throw new Exception('Unable to open session lock for token. This should never happen. Code:smeidYdDDi');
+
+        $this->sessionFileResource = $newFileResource;
+
         // update required parameters
         $this->session->account_id = $account_id;
         $this->session->account_type = $account_type;
@@ -172,13 +197,25 @@ class SessionManager
             $this->terminate();
     }
 
-    private function openSessionLock(string $token): mixed// @var resource
+    /**
+     * @param string $token
+     * @return mixed false|resource
+     */
+    private function openSessionLock(string $token): mixed
     {
         $filename = $this->config->directory . '/' . $token;
 
-        $fileResource = fopen($filename, 'r+'); // Open the file for reading and writing (at this point file should already exist)
+        // Open the file for reading and writing. Suppress the error here as we don't care about it since we're using
+        // the error logic to determine if the file is present or not, and if not we're returning false
+        $fileResource = @fopen($filename, 'r+');
 
-        flock($fileResource, LOCK_EX); // Attempt to acquire an exclusive lock, block and wait if one cannot be acquired
+        if($fileResource === false)
+            return false;
+
+        // Now, if file was opened successfully, try to get a lock.
+        if (flock($fileResource, LOCK_EX) === false) // Attempt to acquire an exclusive lock, block and wait if one cannot be acquired
+            return false;
+
         clearstatcache(true, $filename); // Clear stat cache for the file
         $contents = fread($fileResource, filesize($filename)); // Read the entire file
         $this->session = json_decode($contents);
@@ -186,23 +223,50 @@ class SessionManager
         return $fileResource;
     }
 
-    private function closeFileAndReleaseLock(mixed $fileResource): void
+    /**
+     * @throws Exception
+     */
+    private function closeFileAndReleaseLock($fileResource): void
     {
-        flock($fileResource, LOCK_UN); // Release the lock
-        fclose($fileResource); // Close the file
+        if (!is_resource($fileResource))
+            throw new Exception("Provided file resource is not valid. Code:xIcyBHvH4A");
+
+        $unlockSuccess = flock($fileResource, LOCK_UN);
+        if (!$unlockSuccess)
+            throw new Exception("Failed to unlock file. Code:3BIhJy8Gp2");
+
+        $closeSuccess = fclose($fileResource);
+        if (!$closeSuccess)
+            throw new Exception("Failed to close file. Code:IeiZlBxoeu");
     }
 
-    private function writeSessionToFile(mixed $fileResource): void
+    /**
+     * @throws Exception
+     */
+    private function writeSessionToFile($fileResource): void
     {
-        ftruncate($fileResource, 0); // Truncate file to zero length
-        rewind($fileResource); // Rewind the file pointer
-        fwrite($fileResource, json_encode($this->session)); // Write the new content
+        if (!is_resource($fileResource))
+            throw new Exception("Provided file resource is not valid. Code:0mgVjuiUN0");
+
+        $truncateSuccess = ftruncate($fileResource, 0);
+        if (!$truncateSuccess)
+            throw new Exception("Failed to truncate file. Code:LuZ1Zvc8wV");
+
+        $rewindSuccess = rewind($fileResource);
+        if (!$rewindSuccess)
+            throw new Exception("Failed to rewind file pointer. Code:KSSfb9uFTd");
+
+        $bytesWritten = fwrite($fileResource, json_encode($this->session));
+        if ($bytesWritten === false)
+            throw new Exception("Failed to write to file. Code:L5abTzW7RH");
     }
+
 
     /**
      * Updates the session's last_used property, persists session to file data store, releases file lock
      *
      * @return void
+     * @throws Exception
      */
     public function terminate(): void
     {

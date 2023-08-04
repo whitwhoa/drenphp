@@ -97,7 +97,7 @@ class App
             $this->request->setRoute(Router::getActiveRoute());
 
             // Process session
-            $this->sessionManager->init($this->request);
+            $this->sessionManager->loadSession($this->request);
 
             // Execute each middleware. If the return type is Dren\Response, send the response
             foreach(Router::getActiveRoute()->getMiddleware() as $m)
