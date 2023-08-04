@@ -12,11 +12,10 @@ class SessionManager
     private SecurityUtility $securityUtility;
     private ?Request $request;
     private ?string $sessionId;
-
-    /**
-     * @var resource
-     */
+    private mixed $tmpFileResource;
     private mixed $sessionFileResource;
+
+
 
     private ?object $session;
 
@@ -26,8 +25,30 @@ class SessionManager
         $this->securityUtility = $su;
         $this->sessionId = null;
         $this->request = null; // null here because we can't completely initialize until after we receive request
+        $this->tmpFileResource = null;
         $this->sessionFileResource = null;
         $this->session = null;
+
+        // register a shutdown function and pass file resources by reference so that we can insure they are
+        // released whenever the script terminates, for whatever reason
+        register_shutdown_function(function() {
+
+            // TODO: Put some logging here for debugging purposes, need to verify this works as intended
+
+            if($this->tmpFileResource !== null)
+            {
+                flock($this->tmpFileResource, LOCK_UN); // release the lock
+                fclose($this->tmpFileResource); // close file
+            }
+
+            if($this->sessionFileResource !== null)
+            {
+                flock($this->sessionFileResource, LOCK_UN); // release the lock
+                fclose($this->sessionFileResource); // close file
+            }
+
+        });
+
     }
 
     /**
@@ -77,11 +98,11 @@ class SessionManager
      */
     private function updateSession(): void
     {
-        $fileResource = $this->openSessionLock($this->sessionId);
+        $this->tmpFileResource = $this->openSessionLock($this->sessionId);
 
         // If we were unable to get a file resource, then it's likely that the file has been removed, so we treat
         // this request as if it did not send a session token.
-        if(!$fileResource)
+        if(!$this->tmpFileResource)
         {
             $this->sessionId = null;
             return;
@@ -96,7 +117,7 @@ class SessionManager
             // Token still valid
 
             // Hold file resource in member variable
-            $this->sessionFileResource = $fileResource;
+            $this->sessionFileResource = $this->tmpFileResource;
 
             // If GET request, then update the session's last_used property and release the lock
             if($this->request->getRoute()->getRequestMethod() === 'GET')
@@ -122,7 +143,7 @@ class SessionManager
             {
                 // invalid
                 $this->session = null;
-                $this->closeFileAndReleaseLock($fileResource);
+                $this->closeFileAndReleaseLock($this->tmpFileResource);
                 $this->sessionId = null;
                 return;
             }
@@ -135,7 +156,7 @@ class SessionManager
 
             $this->sessionFileResource = $newFileResource;
 
-            $this->closeFileAndReleaseLock($fileResource); // release lock of expired session after obtaining lock for new session
+            $this->closeFileAndReleaseLock($this->tmpFileResource); // release lock of expired session after obtaining lock for new session
             $this->setClientSessionId();
 
             if($this->request->getRoute()->getRequestMethod() === 'GET')
@@ -151,7 +172,7 @@ class SessionManager
         {
             // not valid for re-issuance
             $this->session = null;
-            $this->closeFileAndReleaseLock($fileResource);
+            $this->closeFileAndReleaseLock($this->tmpFileResource);
             $this->sessionId = null;
             return;
         }
@@ -170,7 +191,7 @@ class SessionManager
         $this->session->reissued_at = time();
         $this->session->updated_token = $newToken;
 
-        $this->writeSessionToFile($fileResource);
+        $this->writeSessionToFile($this->tmpFileResource);
 
         // open lock on new session token
         $this->sessionId = $newToken;
@@ -189,7 +210,7 @@ class SessionManager
         // write updated session to file
         $this->writeSessionToFile($this->sessionFileResource);
         // release lock on old session token
-        $this->closeFileAndReleaseLock($fileResource);
+        $this->closeFileAndReleaseLock($this->tmpFileResource);
         // attach new token to response
         $this->setClientSessionId();
 
@@ -224,9 +245,10 @@ class SessionManager
     }
 
     /**
+     *
      * @throws Exception
      */
-    private function closeFileAndReleaseLock($fileResource): void
+    private function closeFileAndReleaseLock(&$fileResource): void
     {
         if (!is_resource($fileResource))
             throw new Exception("Provided file resource is not valid. Code:xIcyBHvH4A");
@@ -238,6 +260,8 @@ class SessionManager
         $closeSuccess = fclose($fileResource);
         if (!$closeSuccess)
             throw new Exception("Failed to close file. Code:IeiZlBxoeu");
+
+        $fileResource = null;
     }
 
     /**
@@ -260,7 +284,6 @@ class SessionManager
         if ($bytesWritten === false)
             throw new Exception("Failed to write to file. Code:L5abTzW7RH");
     }
-
 
     /**
      * Updates the session's last_used property, persists session to file data store, releases file lock

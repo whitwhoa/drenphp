@@ -59,7 +59,7 @@ class App
         if(!$this->config->session->name)
             $this->config->session->name = strtoupper($this->config->app_name) . '_SESSION';
 
-        $this->sessionManager = new SessionManager($this->config->session);
+        $this->sessionManager = new SessionManager($this->config->session, $this->securityUtility);
 
         // Initialize view compiler
         $this->viewCompiler = new ViewCompiler($privateDir, $this->sessionManager);
@@ -98,6 +98,9 @@ class App
 
             // Process session
             $this->sessionManager->loadSession($this->request);
+
+            // TODO: Need process here that checks for remember_id token and attempts to re-authenticate the user if
+            // one is found.
 
             // Execute each middleware. If the return type is Dren\Response, send the response
             foreach(Router::getActiveRoute()->getMiddleware() as $m)
@@ -193,13 +196,6 @@ class App
                 ))->send();
             }
          }
-// TODO:
-//         finally
-//         {
-//             // clear any open locks that have been set by this process id, for this device or user,
-                // and actually, you might not even do this here and just rely on the register_shutdown_function()
-                // which we will need to implement
-//         }
     }
 
     public function getPrivateDir() 
@@ -230,11 +226,6 @@ class App
     public function getViewCompiler() 
     {
         return $this->viewCompiler;
-    }
-
-    public function getRouter() 
-    {
-        return $this->router;
     }
 
     public function getHttpClient()
