@@ -70,9 +70,113 @@ class SessionManager
         $this->sessionId = $unverified_session_id;
     }
 
-    private function openFileAndLock(string $filename): mixed// @var resource
+    private function updateSession(): void
     {
-        $fileResource = fopen($filename, 'r+'); // Open the file for reading and writing
+        $fileResource = $this->openSessionLock($this->sessionId);
+
+        // content of session file data store loaded into memory as $this->session value
+        // holding lock for $this->sessionId file
+
+        // Has session token expired?
+        if(($this->session->issued_at + $this->session->valid_for) < time())
+        {
+            // Token still valid
+
+            // Hold file resource in member variable
+            $this->sessionFileResource = $fileResource;
+
+            // If GET request, then update the session's last_used property and release the lock
+            if($this->request->getRoute()->getRequestMethod() === 'GET')
+                $this->terminate();
+
+            // If POST nothing further required as the lock will remain open throughout the request and terminated
+            // right before sending the response
+            return;
+        }
+
+        // If we have made it here, then the session token has expired
+
+        // If reissued_at is not null, then the current token is a token which has previously been reissued, which
+        // we can take to mean that there were multiple concurrent requests in flight during the re-issuance process,
+        // or that the connection was lost before the client could receive the new token.
+        if($this->session->reissued_at !== null)
+        {
+            // Check if this token is still within its liminal state. If it is not, then this token has expired, and
+            // we want to set the token to null and treat this as a request which did not supply a token. If it is,
+            // then we set this session_id equal to the updated_token value, release the lock on the expired token file
+            // and obtain a lock for the updated_token
+            if(($this->session->reissued_at + $this->session->liminal_time) < time())
+            {
+                // invalid
+                $this->session = null;
+                $this->closeFileAndReleaseLock($fileResource);
+                $this->sessionId = null;
+                return;
+            }
+
+            $this->sessionId = $this->session->updated_token;
+            $this->sessionFileResource = $this->openSessionLock($this->sessionId);
+            $this->closeFileAndReleaseLock($fileResource); // release lock of expired session after obtaining lock for new session
+            $this->setClientSessionId();
+
+            if($this->request->getRoute()->getRequestMethod() === 'GET')
+                $this->terminate();
+
+            return;
+        }
+
+        // If we've made it here, then the token has expired, and has not been previously re-issued while still being
+        // within it's liminal state. We must check to verify that the token is still valid for re-issuance (based off
+        // of inactivity). If it is not, we set treat the request as though no session token was provided...
+        if((time() - $this->session->last_used) > $this->session->allowed_inactivity)
+        {
+            // not valid for re-issuance
+            $this->session = null;
+            $this->closeFileAndReleaseLock($fileResource);
+            $this->sessionId = null;
+            return;
+        }
+
+        // ...if it is, we generate a new token and copy the data from this session into the new
+        // session, then take the new sessionId and save it as the updated_token property within the old session,
+        // update the old session's regenerated_at property, then set the new token to be issued to the client in
+        // response
+        $newToken = $this->generateNewSession();
+
+        $account_id = $this->session->account_id;
+        $account_type = $this->session->account_type;
+        $flash_data = $this->session->flash_data;
+        $data = $this->session->data;
+
+        $this->session->reissued_at = time();
+        $this->session->updated_token = $newToken;
+
+        $this->writeSessionToFile($fileResource);
+
+        // open lock on new session token
+        $this->sessionId = $newToken;
+        $this->sessionFileResource = $this->openSessionLock($this->sessionId);
+        // update required parameters
+        $this->session->account_id = $account_id;
+        $this->session->account_type = $account_type;
+        $this->session->flash_data = $flash_data;
+        $this->session->data = $data;
+        // write updated session to file
+        $this->writeSessionToFile($this->sessionFileResource);
+        // release lock on old session token
+        $this->closeFileAndReleaseLock($fileResource);
+        // attach new token to response
+        $this->setClientSessionId();
+
+        if($this->request->getRoute()->getRequestMethod() === 'GET')
+            $this->terminate();
+    }
+
+    private function openSessionLock(string $token): mixed// @var resource
+    {
+        $filename = $this->config->directory . '/' . $token;
+
+        $fileResource = fopen($filename, 'r+'); // Open the file for reading and writing (at this point file should already exist)
 
         flock($fileResource, LOCK_EX); // Attempt to acquire an exclusive lock, block and wait if one cannot be acquired
         clearstatcache(true, $filename); // Clear stat cache for the file
@@ -88,40 +192,11 @@ class SessionManager
         fclose($fileResource); // Close the file
     }
 
-    private function updateSession(): void
+    private function writeSessionToFile(mixed $fileResource): void
     {
-        $fileResource = $this->openFileAndLock($this->config->directory . '/' . $this->sessionId);
-
-        // content of session file data store loaded into memory as $this->session value
-        // holding lock for $this->sessionId file
-
-        // Has session token expired?
-        if(!(($this->session->issued_at + $this->session->valid_for) >= time()))
-        {
-            // token still valid
-            $this->sessionFileResource = $fileResource;
-
-            // If GET request, then update the session's last_used property and release the lock
-            if($this->request->getRoute()->getRequestMethod() === 'GET')
-                $this->terminate();
-
-            // If POST nothing further required as the lock will remain open throughout the request and terminated
-            // right before sending the response
-            return;
-        }
-
-        // If we have made it here, then the session token has expired
-
-        // Is session token valid for re-issuance?
-        if(!((time() - $this->session->last_used) <= $this->session->allowed_inactivity))
-        {
-            // Token is not valid for re-issuance
-            $this->session_id = null;
-            return;
-        }
-
-        // Check if token is in liminal state
-
+        ftruncate($fileResource, 0); // Truncate file to zero length
+        rewind($fileResource); // Rewind the file pointer
+        fwrite($fileResource, json_encode($this->session)); // Write the new content
     }
 
     /**
@@ -132,9 +207,7 @@ class SessionManager
     public function terminate(): void
     {
         $this->session->last_used = time();
-        ftruncate($this->sessionFileResource, 0); // Truncate file to zero length
-        rewind($this->sessionFileResource); // Rewind the file pointer
-        fwrite($this->sessionFileResource, json_encode($this->session)); // Write the new content
+        $this->writeSessionToFile($this->sessionFileResource);
         $this->closeFileAndReleaseLock($this->sessionFileResource);
     }
 
@@ -146,7 +219,7 @@ class SessionManager
      * @param string|null $accountType
      * @return string
      */
-    private function generateNewSession(?int $accountId = null,?string $accountType = null): string
+    private function generateNewSession(?int $accountId = null, ?string $accountType = null): string
     {
         // Generate the new signed session_id token
         $token = $this->securityUtility->generateSignedToken();
@@ -159,8 +232,11 @@ class SessionManager
             'valid_for' => $this->config->valid_for,
             'liminal_time' => $this->config->liminal_time,
             'allowed_inactivity' => $this->config->allowed_inactivity,
+            'reissued_at' => null,
+            'updated_token' => null,
             'csrf' => uuid_create_v4(),
-            'flash_data' => []
+            'flash_data' => [],
+            'data' => []
         ]);
 
         // Create the file on the filesystem
