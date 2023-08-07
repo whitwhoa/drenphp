@@ -286,19 +286,6 @@ class SessionManager
     }
 
     /**
-     * Updates the session's last_used property, persists session to file data store, releases file lock
-     *
-     * @return void
-     * @throws Exception
-     */
-    public function terminate(): void
-    {
-        $this->session->last_used = time();
-        $this->writeSessionToFile($this->sessionFileResource);
-        $this->closeFileAndReleaseLock($this->sessionFileResource);
-    }
-
-    /**
      * Generates a new session token and corresponding filesystem datastore, then returns token. Does not
      * set token in response data, that needs to be handled by calling function if it is required
      *
@@ -378,6 +365,19 @@ class SessionManager
         $this->sessionId = $this->generateNewSession($accountId, $accountType);
         $this->session = json_decode(file_get_contents($this->config->directory . '/' . $this->sessionId));
         $this->setClientSessionId();
+    }
+
+    /**
+     * Updates the session's last_used property, persists session to file data store, releases file lock
+     *
+     * @return void
+     * @throws Exception
+     */
+    public function terminate(): void
+    {
+        $this->session->last_used = time();
+        $this->writeSessionToFile($this->sessionFileResource);
+        $this->closeFileAndReleaseLock($this->sessionFileResource);
     }
 
     public function flashSave(string $key, mixed $data): void
