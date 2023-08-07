@@ -21,7 +21,7 @@ class App
 
     private HttpClient $httpClient;
 
-    public static function init(string $privateDir)
+    public static function init(string $privateDir): ?App
     {
         if (self::$instance == null) 
             self::$instance = new App($privateDir);
@@ -50,24 +50,17 @@ class App
         $this->config = (require_once $privateDir . '/config.php');
         $this->injectPrivateDirIntoConfig();
 
+        Logger::init($this->config->log_file);
         $this->securityUtility = new SecurityUtility($this->config->encryption_key);
-
-        // Initialize request
         $this->request = new Request($this->config->allowed_file_upload_mimes);
 
-        // Initialize session manager if enabled within config
         if(!$this->config->session->name)
             $this->config->session->name = strtoupper($this->config->app_name) . '_SESSION';
 
         $this->sessionManager = new SessionManager($this->config->session, $this->securityUtility);
-
-        // Initialize view compiler
         $this->viewCompiler = new ViewCompiler($privateDir, $this->sessionManager);
-
-        // Initialize HttpClient
         $this->httpClient = new HttpClient($privateDir . '/storage/httpclient'); //TODO: this should be a config value
 
-        // Initialize database if provided within config
         if(isset($this->config->databases) && count($this->config->databases) > 0)
             $this->db = new MysqlConnectionManager($this->config->databases);
         else
@@ -84,6 +77,9 @@ class App
 
         if(isset($this->config->session->rid_lock_dir))
             $this->config->session->rid_lock_dir = $this->privateDir . $this->config->session->rid_lock_dir;
+
+        if(isset($this->config->log_file))
+            $this->config->log_file = $this->privateDir . $this->config->log_file;
     }
 
     public function execute() : void
@@ -133,15 +129,15 @@ class App
                             'message' => 'Unable to process request due to validation errors',
                             'errors' => $fdv->getErrors()->export()
                         ])->send();
-                        return;
                     }
                     else
                     {
                         $this->sessionManager->flashSave('errors', $fdv->getErrors()->export());
                         $this->sessionManager->flashSave('old', $this->request->getGetPostData());
                         (new Response())->redirect($this->request->getReferrer())->send();
-                        return;
                     }
+
+                    return;
                 }
             }
 
@@ -161,10 +157,13 @@ class App
                 {
                     case 401:
                         $message = 'You are not authorized to access this resource';
+                        break;
                     case 403:
                         $message = 'This resource is forbidden';
+                        break;
                     case 404:
                         $message = 'Resource does not exist';
+                        break;
                     case 422:
                         $message = 'Unable to process request given provided parameters';
                 }
@@ -181,7 +180,7 @@ class App
         }
         catch (Exception $e)
         {
-            error_log($e->getMessage() . ":" . $e->getTraceAsString());
+            Logger::write($e->getMessage() . ":" . $e->getTraceAsString());
 
             if($this->request->isJsonRequest())
             {
@@ -198,7 +197,7 @@ class App
          }
     }
 
-    public function getPrivateDir() 
+    public function getPrivateDir(): string
     {
         return $this->privateDir;
     }
@@ -208,32 +207,35 @@ class App
         return $this->config;
     }
 
-    public function getDb($dbName = null)
+    /**
+     * @throws Exception
+     */
+    public function getDb($dbName = null): MySQLCon
     {
         return $this->db->get($dbName);
     }
 
-    public function getRequest() 
+    public function getRequest(): Request
     {
         return $this->request;
     }
 
-    public function getSessionManager() 
+    public function getSessionManager(): ?SessionManager
     {
         return $this->sessionManager;
     }
 
-    public function getViewCompiler() 
+    public function getViewCompiler(): ViewCompiler
     {
         return $this->viewCompiler;
     }
 
-    public function getHttpClient()
+    public function getHttpClient(): HttpClient
     {
         return $this->httpClient;
     }
 
-    public function getSecurityUtility()
+    public function getSecurityUtility(): SecurityUtility
     {
         return $this->securityUtility;
     }

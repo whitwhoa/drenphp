@@ -33,7 +33,7 @@ class SessionManager
         // released whenever the script terminates, for whatever reason
         register_shutdown_function(function() {
 
-            // TODO: Put some logging here for debugging purposes, need to verify this works as intended
+            Logger::write('Got to the register_shutdown_function defined within SessionManager for verifying locks are released');
 
             if($this->tmpFileResource !== null)
             {
@@ -378,6 +378,16 @@ class SessionManager
         $this->sessionId = $this->generateNewSession($accountId, $accountType);
         $this->session = json_decode(file_get_contents($this->config->directory . '/' . $this->sessionId));
         $this->setClientSessionId();
+    }
+
+    public function flashSave(string $key, mixed $data): void
+    {
+        $this->session->flash->$key = $data;
+    }
+
+    public function save(string $key, mixed $data): void
+    {
+        $this->session->data->$key = $data;
     }
 
 }
