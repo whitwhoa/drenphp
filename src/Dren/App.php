@@ -54,9 +54,6 @@ class App
         $this->securityUtility = new SecurityUtility($this->config->encryption_key);
         $this->request = new Request($this->config->allowed_file_upload_mimes);
 
-        if(!$this->config->session->name)
-            $this->config->session->name = strtoupper($this->config->app_name) . '_SESSION';
-
         $this->sessionManager = new SessionManager($this->config->session, $this->securityUtility);
         $this->viewCompiler = new ViewCompiler($privateDir, $this->sessionManager);
         $this->httpClient = new HttpClient($privateDir . '/storage/httpclient'); //TODO: this should be a config value
@@ -99,7 +96,7 @@ class App
             // one is found.
 
             // TODO: Need process that verifies that this request contains a session token if this is a blocking route,
-            // and if it does now then create a session, save any required data, and if ajax send appropriate response,
+            // and if it does not, then create a session, save any required data, and if ajax send appropriate response,
             // or if not ajax, then do a redirect to referrer
 
             // Execute each middleware. If the return type is Dren\Response, send the response

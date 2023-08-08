@@ -44,7 +44,7 @@ class SecurityUtility
 
             // Verify the signature
             if (hash_equals($expectedSignature, $receivedSignature))
-                return $token; // Signature is valid, return the token
+                return $tokenAndSignature; // Signature is valid, return the token with its signature
             else
                 return null; // Signature is invalid
         }

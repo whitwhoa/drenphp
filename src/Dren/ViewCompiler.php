@@ -61,6 +61,8 @@ class ViewCompiler
 
         $data['old'] = $this->sessionManager->getFlash('old');
 
+        $data['sessionManager'] = $this->sessionManager; // add this so we can call getCsrf() when needed
+
         extract($data);
 
         start_section();

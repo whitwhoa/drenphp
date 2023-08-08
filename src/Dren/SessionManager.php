@@ -33,8 +33,6 @@ class SessionManager
         // released whenever the script terminates, for whatever reason
         register_shutdown_function(function() {
 
-            Logger::write('Got to the register_shutdown_function defined within SessionManager for verifying locks are released');
-
             if($this->tmpFileResource !== null)
             {
                 flock($this->tmpFileResource, LOCK_UN); // release the lock
@@ -105,6 +103,7 @@ class SessionManager
         if(!$this->tmpFileResource)
         {
             $this->sessionId = null;
+            $this->tmpFileResource = null;
             return;
         }
 
@@ -118,6 +117,7 @@ class SessionManager
 
             // Hold file resource in member variable
             $this->sessionFileResource = $this->tmpFileResource;
+            $this->tmpFileResource = null;
 
             // If GET request, then update the session's last_used property and release the lock
             if(!$this->request->getRoute()->isBlocking())
@@ -177,6 +177,8 @@ class SessionManager
             return;
         }
 
+        Logger::write('Regenerating session token due to ttl expiration');
+
         // ...if it is, we generate a new token and copy the data from this session into the new
         // session, then take the new sessionId and save it as the updated_token property within the old session,
         // update the old session's regenerated_at property, then set the new token to be issued to the client in
@@ -184,7 +186,7 @@ class SessionManager
         $newToken = $this->generateNewSession();
 
         $account_id = $this->session->account_id;
-        $account_type = $this->session->account_type;
+        $account_roles = $this->session->account_roles;
         $flash_data = $this->session->flash_data;
         $data = $this->session->data;
 
@@ -204,7 +206,7 @@ class SessionManager
 
         // update required parameters
         $this->session->account_id = $account_id;
-        $this->session->account_type = $account_type;
+        $this->session->account_roles = $account_roles;
         $this->session->flash_data = $flash_data;
         $this->session->data = $data;
         // write updated session to file
@@ -267,7 +269,7 @@ class SessionManager
     /**
      * @throws Exception
      */
-    private function writeSessionToFile($fileResource): void
+    private function writeSessionToFile(&$fileResource): void
     {
         if (!is_resource($fileResource))
             throw new Exception("Provided file resource is not valid. Code:0mgVjuiUN0");
@@ -290,17 +292,17 @@ class SessionManager
      * set token in response data, that needs to be handled by calling function if it is required
      *
      * @param int|null $accountId
-     * @param string|null $accountType
+     * @param array $accountRoles
      * @return string
      */
-    private function generateNewSession(?int $accountId = null, ?string $accountType = null): string
+    private function generateNewSession(?int $accountId = null, array $accountRoles = []): string
     {
         // Generate the new signed session_id token
         $token = $this->securityUtility->generateSignedToken();
 
-        $data = json_encode([
+        $sessionInfo = json_encode([
             'account_id' => $accountId,
-            'account_type' => $accountType,
+            'account_roles' => $accountRoles,
             'issued_at' => time(),
             'last_used' => time(),
             'valid_for' => $this->config->valid_for,
@@ -314,7 +316,7 @@ class SessionManager
         ]);
 
         // Create the file on the filesystem
-        file_put_contents($this->config->directory . '/' . $token, $data);
+        file_put_contents($this->config->directory . '/' . $token, $sessionInfo);
 
         // We return the token here so that the calling function can dictate what we do with it, since logic differs
         // between strictly new first time generations, and updates, on updates we have to modify the data with the
@@ -357,12 +359,12 @@ class SessionManager
      * the same thing...
      *
      * @param int|null $accountId
-     * @param string|null $accountType
+     * @param array $accountRoles
      * @return void
      */
-    public function startNewSession(?int $accountId = null, ?string $accountType = null): void
+    public function startNewSession(?int $accountId = null, array $accountRoles = []): void
     {
-        $this->sessionId = $this->generateNewSession($accountId, $accountType);
+        $this->sessionId = $this->generateNewSession($accountId, $accountRoles);
         $this->session = json_decode(file_get_contents($this->config->directory . '/' . $this->sessionId));
         $this->setClientSessionId();
     }
@@ -429,6 +431,33 @@ class SessionManager
             return null;
 
         return $this->session->data->{$key};
+    }
+
+    public function getCsrf(): string
+    {
+        if(!$this->sessionId)
+            $this->startNewSession();
+
+        return $this->session->csrf;
+    }
+
+    public function isAuthenticated(): bool
+    {
+        if(!$this->sessionId)
+            return false;
+
+        if(!$this->session->account_id)
+            return false;
+
+        return true;
+    }
+
+    public function getAccountId(): ?int
+    {
+        if(!$this->session->account_id)
+            return null;
+
+        return $this->session->account_id;
     }
 
 }
