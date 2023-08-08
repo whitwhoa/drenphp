@@ -74,13 +74,18 @@ class Request
         return null;
     }
 
-    public function isJsonRequest() : bool
+    public function expectsJson() : bool
     {
         $headers = getallheaders();
         if (isset($headers['Accept']))
             return str_contains($headers['Accept'], 'application/json');
 
         return false;
+    }
+
+    public function isAjax(): bool
+    {
+        return $this->getHeader('X-Requested-With') === 'XMLHttpRequest';
     }
 
     public function getRouteParam(string $paramName) : mixed
