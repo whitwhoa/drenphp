@@ -11,11 +11,11 @@ use RecursiveIteratorIterator;
 
 class ViewCompiler
 {
-    private $views = [];
-    private $sessionManager;
+    private array $views = [];
+    private SessionManager $sessionManager;
 
 
-    public function __construct($privateDir, $sessionManager)
+    public function __construct(string $privateDir, SessionManager $sessionManager)
     {
         foreach (new RecursiveIteratorIterator(new RecursiveDirectoryIterator($privateDir . '/views')) as $file) 
         {
@@ -56,10 +56,10 @@ class ViewCompiler
 
         // check if sessionManager contains validation errors, if it does...instantiate a ValidationErrorContainer
         $data['errors'] = new ValidationErrorContainer();
-        if($this->sessionManager && $this->sessionManager->get('errors'))
-            $data['errors']->import((array)$this->sessionManager->get('errors'));
+        if($this->sessionManager->getFlash('errors'))
+            $data['errors']->import((array)$this->sessionManager->getFlash('errors'));
 
-        $data['old'] = ($this->sessionManager && $this->sessionManager->get('old')) ? $this->sessionManager->get('old') : NULL;
+        $data['old'] = $this->sessionManager->getFlash('old');
 
         extract($data);
 

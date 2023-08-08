@@ -9,6 +9,7 @@ class Route
     // instance to be built via said chaining
     private ?string $routeType; // web, api, or mobile (could have used enum but don't want a ton of pointless files, and psr standards dictate that every little enum should be its own file)
     private ?string $requestMethod; // get or post (not supporting anything else, there's no NEED)
+    private bool $blocking;
     private ?string $uri;
     private ?string $uriRegex;
     private array $uriParamPlaceholders;
@@ -23,6 +24,7 @@ class Route
 
         $this->routeType = null;
         $this->requestMethod = null;
+        $this->blocking = false;
         $this->uri = null;
         $this->uriRegex = null;
         $this->uriParamPlaceholders = [];
@@ -42,6 +44,11 @@ class Route
     public function setRequestMethod(string $requestMethod): void
     {
         $this->requestMethod = $requestMethod;
+    }
+
+    public function setBlocking(bool $blocking): void
+    {
+        $this->blocking = $blocking;
     }
 
     public function setUri(string $uri): void
@@ -107,6 +114,11 @@ class Route
     public function getRequestMethod(): ?string
     {
         return $this->requestMethod;
+    }
+
+    public function isBlocking(): ?bool
+    {
+        return $this->blocking;
     }
 
     public function getUri(): ?string

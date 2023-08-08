@@ -101,7 +101,7 @@ class Request
      * This merges GET and POST data, if any GET parameters are provided which have the same name as a POST parameter,
      * the POST parameter will overwrite the GET parameter. Insure GET and POST parameter names are unique.
      */
-    public function getGetPostData() : object
+    public function getRequestData() : object
     {
         return (object)array_merge((array)$this->getData, (array)$this->postData);
     }

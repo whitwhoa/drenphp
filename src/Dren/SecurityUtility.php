@@ -2,6 +2,8 @@
 
 namespace Dren;
 
+use Exception;
+
 class SecurityUtility
 {
     private string $encryptionKey;

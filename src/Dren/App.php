@@ -98,6 +98,10 @@ class App
             // TODO: Need process here that checks for remember_id token and attempts to re-authenticate the user if
             // one is found.
 
+            // TODO: Need process that verifies that this request contains a session token if this is a blocking route,
+            // and if it does now then create a session, save any required data, and if ajax send appropriate response,
+            // or if not ajax, then do a redirect to referrer
+
             // Execute each middleware. If the return type is Dren\Response, send the response
             foreach(Router::getActiveRoute()->getMiddleware() as $m)
             {
@@ -133,8 +137,8 @@ class App
                     }
                     else
                     {
-                        $this->sessionManager->flashSave('errors', $fdv->getErrors()->export());
-                        $this->sessionManager->flashSave('old', $this->request->getGetPostData());
+                        $this->sessionManager->saveFlash('errors', $fdv->getErrors()->export());
+                        $this->sessionManager->saveFlash('old', $this->request->getRequestData());
                         (new Response())->redirect($this->request->getReferrer())->send();
                     }
 

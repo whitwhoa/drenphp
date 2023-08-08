@@ -120,7 +120,7 @@ class SessionManager
             $this->sessionFileResource = $this->tmpFileResource;
 
             // If GET request, then update the session's last_used property and release the lock
-            if($this->request->getRoute()->getRequestMethod() === 'GET')
+            if(!$this->request->getRoute()->isBlocking())
                 $this->terminate();
 
             // If POST nothing further required as the lock will remain open throughout the request and terminated
@@ -159,7 +159,7 @@ class SessionManager
             $this->closeFileAndReleaseLock($this->tmpFileResource); // release lock of expired session after obtaining lock for new session
             $this->setClientSessionId();
 
-            if($this->request->getRoute()->getRequestMethod() === 'GET')
+            if(!$this->request->getRoute()->isBlocking())
                 $this->terminate();
 
             return;
@@ -214,7 +214,7 @@ class SessionManager
         // attach new token to response
         $this->setClientSessionId();
 
-        if($this->request->getRoute()->getRequestMethod() === 'GET')
+        if(!$this->request->getRoute()->isBlocking())
             $this->terminate();
     }
 
@@ -369,6 +369,7 @@ class SessionManager
 
     /**
      * Updates the session's last_used property, persists session to file data store, releases file lock
+     * TODO: does this need to be public?
      *
      * @return void
      * @throws Exception
@@ -380,14 +381,54 @@ class SessionManager
         $this->closeFileAndReleaseLock($this->sessionFileResource);
     }
 
-    public function flashSave(string $key, mixed $data): void
+    /**
+     * Basically same thing as terminate(), but checks if get or post, and follows the assumption that any get
+     * requests would have already been handled
+     *
+     * @return void
+     * @throws Exception
+     */
+    public function finalizeSessionState(): void
     {
-        $this->session->flash->$key = $data;
+        if(!$this->sessionId)
+            return;
+
+        if(!$this->request->getRoute()->isBlocking())
+            return;
+
+        $this->terminate();
     }
 
-    public function save(string $key, mixed $data): void
+    public function saveFlash(string $key, mixed $data): void
     {
-        $this->session->data->$key = $data;
+        if(!$this->sessionId)
+            $this->startNewSession();
+
+        $this->session->flash_data->{$key} = $data;
+    }
+
+    public function getFlash(string $key): mixed
+    {
+        if(!$this->sessionId || !isset($this->session->flash_data->{$key}))
+            return null;
+
+        return $this->session->flash_data->{$key};
+    }
+
+    public function saveData(string $key, mixed $data): void
+    {
+        if(!$this->sessionId)
+            $this->startNewSession();
+
+        $this->session->data->{$key} = $data;
+    }
+
+    public function getData(string $key): mixed
+    {
+        if(!$this->sessionId || !isset($this->session->data->{$key}))
+            return null;
+
+        return $this->session->data->{$key};
     }
 
 }
