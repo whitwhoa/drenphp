@@ -54,6 +54,15 @@ class ViewCompiler
         if(!array_key_exists($view, $this->views))
             throw new Exception('Given view name does not exist');
 
+        if(array_key_exists('errors', $data))
+            throw new Exception('Cannot use "errors" as data key for view. It is a reserved name.');
+
+        if(array_key_exists('old', $data))
+            throw new Exception('Cannot use "old" as data key for view. It is a reserved name.');
+
+        if(array_key_exists('sessionManager', $data))
+            throw new Exception('Cannot use "sessionManager" as data key for view. It is a reserved name.');
+
         // check if sessionManager contains validation errors, if it does...instantiate a ValidationErrorContainer
         $data['errors'] = new ValidationErrorContainer();
         if($this->sessionManager->getFlash('errors'))

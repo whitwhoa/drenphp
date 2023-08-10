@@ -87,52 +87,28 @@ class Router
         return self::$instance->routes[self::$instance->activeRoute];
     }
 
-    /**
-     * Regular non-blocking GET request
-     *
-     * @param string $uriString
-     * @return $this
-     */
     public function get(string $uriString) : Router
     {
         $route = end($this->routes);
         $route->setRequestMethod('GET');
-        $route->setBlocking(false);
         $route->setUri($uriString);
 
         return $this;
     }
 
-    /**
-     * GET request that will block the same as a POST request. Only use these when you
-     * know you need them for something, which should be very rare if adhering to the
-     * principle that GET requests should be idempotent
-     *
-     * @param string $uriString
-     * @return $this
-     */
-    public function getAndBlock(string $uriString) : Router
-    {
-        $route = end($this->routes);
-        $route->setRequestMethod('GET');
-        $route->setBlocking(true);
-        $route->setUri($uriString);
-
-        return $this;
-    }
-
-    /**
-     * POST request. Blocks by default.
-     *
-     * @param string $uriString
-     * @return $this
-     */
     public function post(string $uriString) : Router
     {
         $route = end($this->routes);
         $route->setRequestMethod('POST');
-        $route->setBlocking(true);
         $route->setUri($uriString);
+
+        return $this;
+    }
+
+    public function block(): Router
+    {
+        $route = end($this->routes);
+        $route->setBlocking(true);
 
         return $this;
     }

@@ -14,10 +14,9 @@ class SessionManager
     private ?string $sessionId;
     private mixed $tmpFileResource;
     private mixed $sessionFileResource;
-
-
-
     private ?object $session;
+
+    private ?object $flashed;
 
     public function __construct(object $sessionConfig, SecurityUtility $su)
     {
@@ -28,6 +27,7 @@ class SessionManager
         $this->tmpFileResource = null;
         $this->sessionFileResource = null;
         $this->session = null;
+        $this->flashed = null;
 
         // register a shutdown function and pass file resources by reference so that we can insure they are
         // released whenever the script terminates, for whatever reason
@@ -119,11 +119,13 @@ class SessionManager
             $this->sessionFileResource = $this->tmpFileResource;
             $this->tmpFileResource = null;
 
-            // If GET request, then update the session's last_used property and release the lock
+            $this->loadFlashed();
+
+            // If not blocking, then update the session's last_used property and release the lock
             if(!$this->request->getRoute()->isBlocking())
                 $this->terminate();
 
-            // If POST nothing further required as the lock will remain open throughout the request and terminated
+            // If blocking, nothing further required as the lock will remain open throughout the request and terminated
             // right before sending the response
             return;
         }
@@ -158,6 +160,8 @@ class SessionManager
 
             $this->closeFileAndReleaseLock($this->tmpFileResource); // release lock of expired session after obtaining lock for new session
             $this->setClientSessionId();
+
+            $this->loadFlashed();
 
             if(!$this->request->getRoute()->isBlocking())
                 $this->terminate();
@@ -216,8 +220,56 @@ class SessionManager
         // attach new token to response
         $this->setClientSessionId();
 
+        $this->loadFlashed();
+
         if(!$this->request->getRoute()->isBlocking())
             $this->terminate();
+    }
+
+    private function loadFlashed(): void
+    {
+        $this->flashed = $this->session->flash_data;
+        $this->session->flash_data = (object)[];
+    }
+
+    /**
+     * @throws Exception
+     */
+    public function upgradeSession(int $accountId, array $roles): void
+    {
+        if(!$this->request->getRoute()->isBlocking())
+            throw new Exception('You are attempting to upgrade a session in a non-blocking route. This is not allowed. Code:S6m4PUuuBr');
+
+        Logger::write('Regenerating session due to successful account authentication');
+
+        $newToken = $this->generateNewSession();
+
+        $flashData = $this->session->flash_data;
+        $data = $this->session->data;
+
+        $this->session->reissued_at = time();
+        $this->session->updated_token = $newToken;
+
+        $this->writeSessionToFile($this->sessionFileResource);
+
+        $this->sessionId = $newToken;
+        $newFileResource = $this->openSessionLock($this->sessionId);
+
+        if(!$newFileResource)
+            throw new Exception('Unable to open session lock for token. This should never happen. Code:l3yPlx2JIY');
+
+        $this->tmpFileResource = $this->sessionFileResource;
+
+        $this->sessionFileResource = $newFileResource;
+
+        $this->session->account_id = $accountId;
+        $this->session->account_roles = $roles;
+        $this->session->flash_data = $flashData;
+        $this->session->data = $data;
+
+        $this->writeSessionToFile($this->sessionFileResource);
+        $this->closeFileAndReleaseLock($this->tmpFileResource);
+        $this->setClientSessionId();
     }
 
     /**
@@ -300,7 +352,7 @@ class SessionManager
         // Generate the new signed session_id token
         $token = $this->securityUtility->generateSignedToken();
 
-        $sessionInfo = json_encode([
+        $sessionInfo = (object)[
             'account_id' => $accountId,
             'account_roles' => $accountRoles,
             'issued_at' => time(),
@@ -311,9 +363,11 @@ class SessionManager
             'reissued_at' => null,
             'updated_token' => null,
             'csrf' => uuid_create_v4(),
-            'flash_data' => [],
-            'data' => []
-        ]);
+            'flash_data' => (object)[],
+            'data' => (object)[]
+        ];
+
+        $sessionInfo = json_encode($sessionInfo);
 
         // Create the file on the filesystem
         file_put_contents($this->config->directory . '/' . $token, $sessionInfo);
@@ -384,8 +438,8 @@ class SessionManager
     }
 
     /**
-     * Basically same thing as terminate(), but checks if get or post, and follows the assumption that any get
-     * requests would have already been handled
+     * Basically same thing as terminate(), but checks if request is blocking, and follows the assumption that any
+     * non-blocking requests would have already been handled
      *
      * @return void
      * @throws Exception
@@ -411,10 +465,10 @@ class SessionManager
 
     public function getFlash(string $key): mixed
     {
-        if(!$this->sessionId || !isset($this->session->flash_data->{$key}))
+        if(!$this->sessionId || !isset($this->flashed->{$key}))
             return null;
 
-        return $this->session->flash_data->{$key};
+        return $this->flashed->{$key};
     }
 
     public function saveData(string $key, mixed $data): void
