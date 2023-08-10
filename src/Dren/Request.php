@@ -6,6 +6,7 @@ namespace Dren;
 class Request
 {
 
+    private string $ip;
     private string $method;
     private string $uri;
     private array $cookies;
@@ -25,6 +26,7 @@ class Request
     {
         $this->allowableMimes = $am;
 
+        $this->setIp();
         $this->setMethod();
         $this->setURI();
         $this->setGetData();
@@ -44,6 +46,11 @@ class Request
     public function getURI() : string
     {
         return $this->uri;
+    }
+
+    public function getIp() : string
+    {
+        return $this->ip;
     }
 
     /**
@@ -162,6 +169,11 @@ class Request
     private function setPostData() : void
     {
         $this->postData = isset($_POST) ? (object)$_POST : NULL;
+    }
+
+    private function setIp() : void
+    {
+        $this->ip = $_SERVER['REMOTE_ADDR'];
     }
 
     private function setFiles() : void

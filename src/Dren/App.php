@@ -7,6 +7,7 @@ use Dren\Exceptions\Forbidden;
 use Dren\Exceptions\NotFound;
 use Dren\Exceptions\Unauthorized;
 use Dren\Exceptions\UnprocessableEntity;
+use PDOException;
 
 class App
 {
@@ -46,6 +47,11 @@ class App
      */
     private function __construct(string $privateDir)
     {
+        //TODO: I suppose we need a try catch here so we can display a super generic omg message to the user
+        // since if something errors here, we can't proceed into the actual execution of the app where we would
+        // be catching http error code exceptions and returning valid views based off of those...essentially...
+        // if we throw exception here...really bad things have happened
+
         $this->privateDir = $privateDir;
         $this->config = (require_once $privateDir . '/config.php');
         $this->injectPrivateDirIntoConfig();
@@ -181,7 +187,7 @@ class App
                     ['detailedMessage' => $e->getMessage()]))->send();
             }
         }
-        catch (Exception $e)
+        catch (Exception|PDOException $e)
         {
             Logger::write($e->getMessage() . ":" . $e->getTraceAsString());
 

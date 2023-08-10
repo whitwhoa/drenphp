@@ -3,60 +3,43 @@
 namespace Dren;
 
 
+use Exception;
 use PDO;
 use PDOException;
+use PDOStatement;
 
 class MySQLCon 
 {
-    private $_show_errors;
-    private $_mysql;
-    private $_query;
-    private $_bind;
-    private $_resultset;
-    private $_fetch_style;
-    private $_single;
-    private $_statement;
+    private ?PDO $_mysql;
+    private ?string $_query;
+    private array $_bind;
+    private array $_resultset;
+    private int $_fetch_style;
+    private bool $_single;
+    private ?PDOStatement $_statement;
 
 
-    function __construct($con, $show_errors = FALSE)
+    function __construct($con)
     {
-        $this->_show_errors = $show_errors;
+        $this->_mysql = new PDO('mysql:host=' . $con[0] . ';dbname=' . $con[3] . ';', $con[1], $con[2]);
+        $this->_mysql->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+        $this->_mysql->setAttribute(PDO::ATTR_EMULATE_PREPARES, false);
 
-        try
-        {
-            $this->_mysql = new PDO('mysql:host=' . $con[0] . ';dbname=' . $con[3] . ';', $con[1], $con[2]);
-
-            if($this->_show_errors)
-                $this->_mysql->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
-        } 
-        catch (PDOException $e) 
-        {
-            if($this->_show_errors)
-                echo 'PDOException: ' . $e->getMessage() . '<br/>';
-            
-            die("An error occurred while processing this request");
-        }
+        $this->_query = null;
+        $this->_bind = [];
+        $this->_resultset = [];
+        $this->_fetch_style = PDO::FETCH_ASSOC;
+        $this->_single = false;
+        $this->_statement = null;
     }
 
-    /**
-     * Close connection on destruct
-     */
     function __destruct() 
     {
-        $this->close_connection();
+        // close connection
+        $this->_mysql = null;
     }
 
-    /**
-     * Set private property $_query equal to value passed via parameter $query, and
-     * $_bind equal to value passed via parameter $bind.
-     *
-     * Variables will be used to generate result set via method called further down the pipe
-     *
-     * @param $query
-     * @param array $bind
-     * @return MySQLCon
-     */
-    public function query($query, $bind = []) 
+    public function query(string $query, array $bind = [])
     {
         $this->_query = $query;
         $this->_bind = $bind;
@@ -68,7 +51,7 @@ class MySQLCon
      *
      * @return MySQLCon
      */
-    public function asArray() 
+    public function asArray() : MySQLCon
     {
         $this->_fetch_style = PDO::FETCH_ASSOC;
         $this->_single = false;
@@ -80,7 +63,7 @@ class MySQLCon
      *
      * @return MySQLCon
      */
-    public function singleAsArray() 
+    public function singleAsArray() : MySQLCon
     {
         $this->_fetch_style = PDO::FETCH_ASSOC;
         $this->_single = true;
@@ -92,7 +75,7 @@ class MySQLCon
      *
      * @return MySQLCon
      */
-    public function asObj() 
+    public function asObj(): MySQLCon
     {
         $this->_fetch_style = PDO::FETCH_OBJ;
         $this->_single = false;
@@ -104,7 +87,7 @@ class MySQLCon
      *
      * @return MySQLCon
      */
-    public function singleAsObj() 
+    public function singleAsObj(): MySQLCon
     {
         $this->_fetch_style = PDO::FETCH_OBJ;
         $this->_single = true;
@@ -112,23 +95,31 @@ class MySQLCon
         return $this;
     }
 
+    public function beginTransaction(): void
+    {
+        $this->_mysql->beginTransaction();
+    }
+
+    public function commitTransaction(): void
+    {
+        $this->_mysql->commit();
+    }
+
+    public function rollbackTransaction(): void
+    {
+        $this->_mysql->rollBack();
+    }
+
     /**
-     *  Execute
+     *
+     * @throws Exception
      */
-    public function exec() 
+    public function exec() : mixed
     {
         $qt = strtolower(explode(' ', trim($this->_query))[0]);
 
         if(!in_array($qt, ['select', 'insert', 'update', 'delete']))
-        {
-            if($this->_show_errors)
-            {
-                echo 'Query not a select, insert, update, delete, or unable to parse query type';
-                die;
-            }
-
-            return false;
-        }
+            throw new Exception('Query not a select, insert, update, delete, or unable to parse query type');
 
         switch($qt)
         {
@@ -148,12 +139,12 @@ class MySQLCon
             case 'update':
             case 'delete':
                 $this->_generate_mysql_statement();
-                return;
+                return null;
         }
     }
 
     // useful when query utilizes IN()
-    public function generate_bind_string_for_array($bindArray = [])
+    public function generate_bind_string_for_array(array $bindArray = []): string
     {
         $returnString = '';
         $count = 1;
@@ -170,23 +161,13 @@ class MySQLCon
         return $returnString;
     }
 
-    public function close_connection()
-    {
-        $this->_mysql = null;
-    }
-
-    public function get_connection_status() 
-    {
-        return $this->_mysql->getAttribute(PDO::ATTR_CONNECTION_STATUS);
-    }
-
     /**
      * Automatically generate the prepared statement based on the variable types
      * provided in parameter $bindArray and execute
      *
      * @return void
      */
-    private function _generate_mysql_statement()
+    private function _generate_mysql_statement(): void
     {
         $this->_statement = $this->_mysql->prepare($this->_query);
 
@@ -215,7 +196,7 @@ class MySQLCon
      *
      * @return void
      */
-    private function _generate_mysql_resultset()
+    private function _generate_mysql_resultset(): void
     {
 		$this->_resultset = $this->_statement->fetchAll($this->_fetch_style);
     }
