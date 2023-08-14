@@ -8,6 +8,7 @@ abstract class FormDataValidator
 {
     abstract protected function setRules() : void;
     protected Request $request;
+    protected SessionManager $sessionManager;
 
     protected array $rules = [];
 
@@ -23,9 +24,10 @@ abstract class FormDataValidator
 
     private string $valueNotPresentToken;
 
-    public function __construct(Request $request)
+    public function __construct(Request $request, SessionManager $sessionManager)
     {
         $this->request = $request;
+        $this->sessionManager = $sessionManager;
 
         $this->requestData = array_merge(
             ($request->getGetData() ? (array)$request->getGetData() : []),
@@ -45,12 +47,37 @@ abstract class FormDataValidator
 
     /*
     Validate functionality has been defaulted to exit validation for a field once the first
-    failed method is hit. If you want to run every method regardless as to whether or not the
+    failed method is hit. If you want to run every method regardless whether the
     previous method was successful, prefix 'run_all' to the method chain
     */
     public function validate() : bool
     {
         $this->setRules();
+
+        /*********************************************************************************************
+         * Default FormDataValidator rules
+         ********************************************************************************************/
+
+        // prepend session verification rule (if you're submitting a form, you had better have a session token)
+        $sessionVerificationRule = ['valid_session' => [function(&$requestData, &$errors, &$fenceUp){
+            $fenceUp = true;
+            if(!$this->sessionManager->getSessionId())
+                $errors->add('invalid_session_token', "Session token was invalid or not provided");
+        }]];
+
+        // prepend csrf validation rule
+        $csrfRule = ['csrf' => ['#required', function(&$requestData, &$errors, &$fenceUp){
+            $fenceUp = true;
+            if($this->sessionManager->getCsrf() != $requestData['csrf'])
+                $errors->add('invalid_csrf_token', "CSRF token was invalid or not provided");
+        }]];
+
+        // prepend defaults to user provided array
+        $this->rules = array_merge($sessionVerificationRule, $csrfRule, $this->rules);
+
+        /*********************************************************************************************
+         * END
+         ********************************************************************************************/
 
         $this->_expandFields();
 
@@ -273,9 +300,9 @@ abstract class FormDataValidator
         else
         {
             $newPath = array_shift($path); // separate first element
-            foreach($path as $p){
+
+            foreach($path as $p)
                 $newPath .= '[' . $p . ']';  // add remaining elements with brackets
-            }
 
             $this->expandedFields[] = [$newPath, $item, (count($this->methodChains) - 1)];
         }

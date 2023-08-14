@@ -154,7 +154,7 @@ class SessionManager
             $newFileResource = $this->openSessionLock($this->sessionId);
 
             if(!$newFileResource)
-                throw new Exception('Unable to open session lock for token. This should never happen. Code:Dm4mvHmJiF');
+                throw new Exception('Unable to open session lock for token. This should never happen.');
 
             $this->sessionFileResource = $newFileResource;
 
@@ -204,7 +204,7 @@ class SessionManager
         $newFileResource = $this->openSessionLock($this->sessionId);
 
         if(!$newFileResource)
-            throw new Exception('Unable to open session lock for token. This should never happen. Code:smeidYdDDi');
+            throw new Exception('Unable to open session lock for token. This should never happen.');
 
         $this->sessionFileResource = $newFileResource;
 
@@ -238,7 +238,7 @@ class SessionManager
     public function upgradeSession(int $accountId, array $roles): void
     {
         if(!$this->request->getRoute()->isBlocking())
-            throw new Exception('You are attempting to upgrade a session in a non-blocking route. This is not allowed. Code:S6m4PUuuBr');
+            throw new Exception('You are attempting to upgrade a session in a non-blocking route. This is not allowed.');
 
         Logger::write('Regenerating session due to successful account authentication');
 
@@ -256,7 +256,7 @@ class SessionManager
         $newFileResource = $this->openSessionLock($this->sessionId);
 
         if(!$newFileResource)
-            throw new Exception('Unable to open session lock for token. This should never happen. Code:l3yPlx2JIY');
+            throw new Exception('Unable to open session lock for token. This should never happen.');
 
         $this->tmpFileResource = $this->sessionFileResource;
 
@@ -305,15 +305,15 @@ class SessionManager
     private function closeFileAndReleaseLock(&$fileResource): void
     {
         if (!is_resource($fileResource))
-            throw new Exception("Provided file resource is not valid. Code:xIcyBHvH4A");
+            throw new Exception("Provided file resource is not valid.");
 
         $unlockSuccess = flock($fileResource, LOCK_UN);
         if (!$unlockSuccess)
-            throw new Exception("Failed to unlock file. Code:3BIhJy8Gp2");
+            throw new Exception("Failed to unlock file.");
 
         $closeSuccess = fclose($fileResource);
         if (!$closeSuccess)
-            throw new Exception("Failed to close file. Code:IeiZlBxoeu");
+            throw new Exception("Failed to close file.");
 
         $fileResource = null;
     }
@@ -324,19 +324,19 @@ class SessionManager
     private function writeSessionToFile(&$fileResource): void
     {
         if (!is_resource($fileResource))
-            throw new Exception("Provided file resource is not valid. Code:0mgVjuiUN0");
+            throw new Exception("Provided file resource is not valid.");
 
         $truncateSuccess = ftruncate($fileResource, 0);
         if (!$truncateSuccess)
-            throw new Exception("Failed to truncate file. Code:LuZ1Zvc8wV");
+            throw new Exception("Failed to truncate file.");
 
         $rewindSuccess = rewind($fileResource);
         if (!$rewindSuccess)
-            throw new Exception("Failed to rewind file pointer. Code:KSSfb9uFTd");
+            throw new Exception("Failed to rewind file pointer.");
 
         $bytesWritten = fwrite($fileResource, json_encode($this->session));
         if ($bytesWritten === false)
-            throw new Exception("Failed to write to file. Code:L5abTzW7RH");
+            throw new Exception("Failed to write to file.");
     }
 
     /**
@@ -512,6 +512,11 @@ class SessionManager
             return null;
 
         return $this->session->account_id;
+    }
+
+    public function getSessionId() : ?string
+    {
+        return $this->sessionId;
     }
 
 }

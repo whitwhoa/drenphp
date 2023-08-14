@@ -126,7 +126,7 @@ class App
             $fdv = Router::getActiveRoute()->getFormDataValidator();
             if($fdv)
             {
-                $fdv = new $fdv($this->request);
+                $fdv = new $fdv($this->request, $this->sessionManager);
 
                 if(!$fdv->validate())
                 {
