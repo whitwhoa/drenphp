@@ -60,7 +60,7 @@ class App
         $this->securityUtility = new SecurityUtility($this->config->encryption_key);
         $this->request = new Request($this->config->allowed_file_upload_mimes);
 
-        $this->sessionManager = new SessionManager($this->config->session, $this->securityUtility);
+        $this->sessionManager = new SessionManager($this->config, $this->securityUtility);
         $this->viewCompiler = new ViewCompiler($privateDir, $this->sessionManager);
         $this->httpClient = new HttpClient($privateDir . '/storage/httpclient'); //TODO: this should be a config value
 

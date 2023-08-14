@@ -4,21 +4,35 @@ namespace Dren;
 
 use Exception;
 
-class FileLockingDataStore implements LockingDataStore
+class FileLockableDataStore implements LockableDataStore
 {
-    private ?string $lockId;
+    private string $directoryPath;
     private mixed $fileResource;
+    private ?string $fileFullPath;
 
-    public function __construct()
+    public function __construct(string $directoryPath)
     {
-        $this->lockId = null;
+        $this->directoryPath = $directoryPath;
+        $this->fileFullPath = null;
         $this->fileResource = null;
+
+        // register a shutdown function so that we can insure file locks are released whenever the script
+        // terminates, whether that be successfully or via error
+        register_shutdown_function(function() {
+
+            if($this->fileResource !== null)
+                $this->closeLock();
+
+        });
+
     }
 
-    public function openLock(string $lockId): bool
+    public function openLock(string $id): bool
     {
+        $fullPath = $this->directoryPath . '/' . $id;
+
         // Open the file for reading and writing. If it doesn't exist, create it.
-        $this->fileResource = fopen($lockId, 'c+');
+        $this->fileResource = fopen($fullPath, 'c+');
 
         // Check if there was a problem opening/creating the file
         if($this->fileResource === false)
@@ -28,16 +42,18 @@ class FileLockingDataStore implements LockingDataStore
         if (flock($this->fileResource, LOCK_EX) === false) // Attempt to acquire an exclusive lock, block and wait if one cannot be acquired
             return false;
 
-        $this->lockId = $lockId;
+        $this->fileFullPath = $fullPath;
 
         return true;
     }
 
-    public function openLockIfExists(string $lockId): bool
+    public function openLockIfExists(string $id): bool
     {
+        $fullPath = $this->directoryPath . '/' . $id;
+
         // Open the file for reading and writing. Suppress the error here as we don't care about it since we're using
         // the error logic to determine if the file is present or not, and if not we're returning false
-        $this->fileResource = @fopen($lockId, 'r+');
+        $this->fileResource = @fopen($fullPath, 'r+');
 
         if($this->fileResource === false)
             return false;
@@ -46,7 +62,7 @@ class FileLockingDataStore implements LockingDataStore
         if (flock($this->fileResource, LOCK_EX) === false) // Attempt to acquire an exclusive lock, block and wait if one cannot be acquired
             return false;
 
-        $this->lockId = $lockId;
+        $this->fileFullPath = $fullPath;
 
         return true;
     }
@@ -77,14 +93,14 @@ class FileLockingDataStore implements LockingDataStore
      */
     public function getContents(): string
     {
-        if(!$this->lockId)
+        if(!$this->fileFullPath)
             throw new Exception('Attempting to getContents of FileLockingDataStore which has no lock id');
 
         if(!$this->fileResource)
             throw new Exception('Attempting to getContents of FileLockingDataStore which has no File Resource');
 
-        clearstatcache(true, $this->lockId); // Clear stat cache for the file
-        $contents = fread($this->fileResource, filesize($this->lockId)); // Read the entire file
+        clearstatcache(true, $this->fileFullPath); // Clear stat cache for the file
+        $contents = fread($this->fileResource, filesize($this->fileFullPath)); // Read the entire file
 
         if(!$contents)
             throw new Exception('Failed to retrieve file contents');
@@ -137,4 +153,21 @@ class FileLockingDataStore implements LockingDataStore
             throw new Exception("Failed to write to file.");
     }
 
+    public function copyOwnership(): LockableDataStore
+    {
+        // Clone the current object
+        $copy = clone $this;
+
+        // Set the original object's resource to null, as the variable holding the return object
+        // will be the new owner of the resource pointer
+        $this->fileResource = null;
+
+        // Return the cloned, unchanged copy
+        return $copy;
+    }
+
+    public function overwriteContentsUnsafe(string $id, string $dataToWrite): void
+    {
+        file_put_contents($this->directoryPath . '/' . $id, $dataToWrite);
+    }
 }

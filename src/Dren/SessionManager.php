@@ -12,41 +12,28 @@ class SessionManager
     private SecurityUtility $securityUtility;
     private ?Request $request;
     private ?string $sessionId;
-    private mixed $tmpFileResource;
-    private mixed $sessionFileResource;
+    private ?LockableDataStore $tmpLockableDataStore;
+    private ?LockableDataStore $sessionLockableDataStore;
     private ?object $session;
 
     private ?object $flashed;
 
-    public function __construct(object $sessionConfig, SecurityUtility $su)
+    public function __construct(object $appConfig, SecurityUtility $su)
     {
-        $this->config = $sessionConfig;
+        $this->config = $appConfig->session;
         $this->securityUtility = $su;
         $this->sessionId = null;
         $this->request = null; // null here because we can't completely initialize until after we receive request
-        $this->tmpFileResource = null;
-        $this->sessionFileResource = null;
+
+        if($appConfig->lockable_datastore_type === 'file')
+        {
+            $this->tmpLockableDataStore = new FileLockableDataStore($this->config->directory);
+            $this->sessionLockableDataStore = new FileLockableDataStore($this->config->directory);
+        }
+        // TODO: once we implement redis functionality, that check will go here
+
         $this->session = null;
         $this->flashed = null;
-
-        // register a shutdown function and pass file resources by reference so that we can insure they are
-        // released whenever the script terminates, for whatever reason
-        register_shutdown_function(function() {
-
-            if($this->tmpFileResource !== null)
-            {
-                flock($this->tmpFileResource, LOCK_UN); // release the lock
-                fclose($this->tmpFileResource); // close file
-            }
-
-            if($this->sessionFileResource !== null)
-            {
-                flock($this->sessionFileResource, LOCK_UN); // release the lock
-                fclose($this->sessionFileResource); // close file
-            }
-
-        });
-
     }
 
     /**
@@ -96,28 +83,26 @@ class SessionManager
      */
     private function updateSession(): void
     {
-        $this->tmpFileResource = $this->openSessionLock($this->sessionId);
-
-        // If we were unable to get a file resource, then it's likely that the file has been removed, so we treat
+        // If we were unable to obtain a lockable data store, then it's likely that it has been removed, so we treat
         // this request as if it did not send a session token.
-        if(!$this->tmpFileResource)
+        if(!$this->tmpLockableDataStore->openLockIfExists($this->sessionId))
         {
             $this->sessionId = null;
-            $this->tmpFileResource = null;
             return;
         }
 
-        // content of session file data store loaded into memory as $this->session value
-        // holding lock for $this->sessionId file
+        // NOW BLOCKING ON PROVIDED SESSION ID
+
+        // If we've made it here, the lockable data store exists, so let's load it's content into memory
+        $this->session = json_decode($this->tmpLockableDataStore->getContents());
 
         // Has session token expired?
         if(($this->session->issued_at + $this->session->valid_for) > time())
         {
             // Token still valid
 
-            // Hold file resource in member variable
-            $this->sessionFileResource = $this->tmpFileResource;
-            $this->tmpFileResource = null;
+            // Copy ownership from tmpLockableDataStore member to sessionLockableDataStore member to be utilized elsewhere
+            $this->sessionLockableDataStore = $this->tmpLockableDataStore->copyOwnership();
 
             $this->loadFlashed();
 
@@ -145,20 +130,19 @@ class SessionManager
             {
                 // invalid
                 $this->session = null;
-                $this->closeFileAndReleaseLock($this->tmpFileResource);
+                $this->tmpLockableDataStore->closeLock();
                 $this->sessionId = null;
                 return;
             }
 
             $this->sessionId = $this->session->updated_token;
-            $newFileResource = $this->openSessionLock($this->sessionId);
-
-            if(!$newFileResource)
+            if(!$this->sessionLockableDataStore->openLockIfExists($this->sessionId))
                 throw new Exception('Unable to open session lock for token. This should never happen.');
 
-            $this->sessionFileResource = $newFileResource;
+            $this->session = json_decode($this->sessionLockableDataStore->getContents());
 
-            $this->closeFileAndReleaseLock($this->tmpFileResource); // release lock of expired session after obtaining lock for new session
+            $this->tmpLockableDataStore->closeLock();
+
             $this->setClientSessionId();
 
             $this->loadFlashed();
@@ -171,12 +155,12 @@ class SessionManager
 
         // If we've made it here, then the token has expired, and has not been previously re-issued while still being
         // within it's liminal state. We must check to verify that the token is still valid for re-issuance (based off
-        // of inactivity). If it is not, we set treat the request as though no session token was provided...
+        // of inactivity). If it is not, we treat the request as though no session token was provided...
         if((time() - $this->session->last_used) > $this->session->allowed_inactivity)
         {
             // not valid for re-issuance
             $this->session = null;
-            $this->closeFileAndReleaseLock($this->tmpFileResource);
+            $this->tmpLockableDataStore->closeLock();
             $this->sessionId = null;
             return;
         }
@@ -197,26 +181,27 @@ class SessionManager
         $this->session->reissued_at = time();
         $this->session->updated_token = $newToken;
 
-        $this->writeSessionToFile($this->tmpFileResource);
+        $this->tmpLockableDataStore->overwriteContents(json_encode($this->session));
 
         // open lock on new session token
         $this->sessionId = $newToken;
-        $newFileResource = $this->openSessionLock($this->sessionId);
-
-        if(!$newFileResource)
+        if(!$this->sessionLockableDataStore->openLockIfExists($this->sessionId))
             throw new Exception('Unable to open session lock for token. This should never happen.');
 
-        $this->sessionFileResource = $newFileResource;
+        $this->session = json_decode($this->sessionLockableDataStore->getContents());
 
         // update required parameters
         $this->session->account_id = $account_id;
         $this->session->account_roles = $account_roles;
         $this->session->flash_data = $flash_data;
         $this->session->data = $data;
+
         // write updated session to file
-        $this->writeSessionToFile($this->sessionFileResource);
+        $this->sessionLockableDataStore->overwriteContents(json_encode($this->session));
+
         // release lock on old session token
-        $this->closeFileAndReleaseLock($this->tmpFileResource);
+        $this->tmpLockableDataStore->closeLock();
+
         // attach new token to response
         $this->setClientSessionId();
 
@@ -250,93 +235,25 @@ class SessionManager
         $this->session->reissued_at = time();
         $this->session->updated_token = $newToken;
 
-        $this->writeSessionToFile($this->sessionFileResource);
+        $this->sessionLockableDataStore->overwriteContents(json_encode($this->session));
+
+        // copy the ownership of the existing sessionLockableDataStore file pointer to tmpLockableDataStore
+        // so that we can clear the lock later
+        $this->tmpLockableDataStore = $this->sessionLockableDataStore->copyOwnership();
 
         $this->sessionId = $newToken;
-        $newFileResource = $this->openSessionLock($this->sessionId);
-
-        if(!$newFileResource)
+        if(!$this->sessionLockableDataStore->openLockIfExists($this->sessionId))
             throw new Exception('Unable to open session lock for token. This should never happen.');
-
-        $this->tmpFileResource = $this->sessionFileResource;
-
-        $this->sessionFileResource = $newFileResource;
+        $this->session = json_decode($this->sessionLockableDataStore->getContents());
 
         $this->session->account_id = $accountId;
         $this->session->account_roles = $roles;
         $this->session->flash_data = $flashData;
         $this->session->data = $data;
 
-        $this->writeSessionToFile($this->sessionFileResource);
-        $this->closeFileAndReleaseLock($this->tmpFileResource);
+        $this->sessionLockableDataStore->overwriteContents(json_encode($this->session));
+        $this->tmpLockableDataStore->closeLock();
         $this->setClientSessionId();
-    }
-
-    /**
-     * @param string $token
-     * @return mixed false|resource
-     */
-    private function openSessionLock(string $token): mixed
-    {
-        $filename = $this->config->directory . '/' . $token;
-
-        // Open the file for reading and writing. Suppress the error here as we don't care about it since we're using
-        // the error logic to determine if the file is present or not, and if not we're returning false
-        $fileResource = @fopen($filename, 'r+');
-
-        if($fileResource === false)
-            return false;
-
-        // Now, if file was opened successfully, try to get a lock.
-        if (flock($fileResource, LOCK_EX) === false) // Attempt to acquire an exclusive lock, block and wait if one cannot be acquired
-            return false;
-
-        clearstatcache(true, $filename); // Clear stat cache for the file
-        $contents = fread($fileResource, filesize($filename)); // Read the entire file
-        $this->session = json_decode($contents);
-
-        return $fileResource;
-    }
-
-    /**
-     *
-     * @throws Exception
-     */
-    private function closeFileAndReleaseLock(&$fileResource): void
-    {
-        if (!is_resource($fileResource))
-            throw new Exception("Provided file resource is not valid.");
-
-        $unlockSuccess = flock($fileResource, LOCK_UN);
-        if (!$unlockSuccess)
-            throw new Exception("Failed to unlock file.");
-
-        $closeSuccess = fclose($fileResource);
-        if (!$closeSuccess)
-            throw new Exception("Failed to close file.");
-
-        $fileResource = null;
-    }
-
-    /**
-     * @throws Exception
-     */
-    private function writeSessionToFile(&$fileResource): void
-    {
-        if (!is_resource($fileResource))
-            throw new Exception("Provided file resource is not valid.");
-
-        $truncateSuccess = ftruncate($fileResource, 0);
-        if (!$truncateSuccess)
-            throw new Exception("Failed to truncate file.");
-
-        $rewindSuccess = rewind($fileResource);
-        if (!$rewindSuccess)
-            throw new Exception("Failed to rewind file pointer.");
-
-        $bytesWritten = fwrite($fileResource, json_encode($this->session));
-        if ($bytesWritten === false)
-            throw new Exception("Failed to write to file.");
     }
 
     /**
@@ -367,10 +284,7 @@ class SessionManager
             'data' => (object)[]
         ];
 
-        $sessionInfo = json_encode($sessionInfo);
-
-        // Create the file on the filesystem
-        file_put_contents($this->config->directory . '/' . $token, $sessionInfo);
+        $this->sessionLockableDataStore->overwriteContentsUnsafe($token, json_encode($sessionInfo));
 
         // We return the token here so that the calling function can dictate what we do with it, since logic differs
         // between strictly new first time generations, and updates, on updates we have to modify the data with the
@@ -393,7 +307,17 @@ class SessionManager
 
         if($this->request->getRoute()->getRouteType() === 'web')
         {
-            setcookie($this->config->web_client_name, $encryptedToken, time() + $this->config->allowed_inactivity, '/');
+            setcookie(
+                $this->config->web_client_name,
+                $encryptedToken,
+                [
+                    'expires' => time() + $this->config->allowed_inactivity,
+                    'path' => '/',
+                    'secure' => $this->config->cookie_secure,
+                    'httponly' => $this->config->cookie_httponly,  // HttpOnly flag
+                    'samesite' => $this->config->cookie_samesite  // SameSite attribute
+                ]
+            );
         }
         elseif($this->request->getRoute()->getRouteType() === 'mobile')
         {
@@ -415,11 +339,18 @@ class SessionManager
      * @param int|null $accountId
      * @param array $accountRoles
      * @return void
+     * @throws Exception
      */
     public function startNewSession(?int $accountId = null, array $accountRoles = []): void
     {
         $this->sessionId = $this->generateNewSession($accountId, $accountRoles);
-        $this->session = json_decode(file_get_contents($this->config->directory . '/' . $this->sessionId));
+
+        if(!$this->sessionLockableDataStore->openLockIfExists($this->sessionId))
+            throw new Exception('Unable to open session lock for token. This should never happen.');
+
+        $this->session = json_decode($this->sessionLockableDataStore->getContents());
+        $this->sessionLockableDataStore->closeLock();
+
         $this->setClientSessionId();
     }
 
@@ -433,8 +364,8 @@ class SessionManager
     public function terminate(): void
     {
         $this->session->last_used = time();
-        $this->writeSessionToFile($this->sessionFileResource);
-        $this->closeFileAndReleaseLock($this->sessionFileResource);
+        $this->sessionLockableDataStore->overwriteContents(json_encode($this->session));
+        $this->sessionLockableDataStore->closeLock();
     }
 
     /**
