@@ -19,8 +19,8 @@ class App
     private Request $request;
     private ?SessionManager $sessionManager; // SessionManager
     private ViewCompiler $viewCompiler; // ViewCompiler
-
     private HttpClient $httpClient;
+    private ?LockableDataStore $ipLock;
 
     public static function init(string $privateDir): ?App
     {
@@ -58,7 +58,7 @@ class App
 
         Logger::init($this->config->log_file);
         $this->securityUtility = new SecurityUtility($this->config->encryption_key);
-        $this->request = new Request($this->config->allowed_file_upload_mimes);
+        $this->request = new Request($this->config->allowed_file_upload_mimes, $this->config->ip_param_name);
 
         $this->sessionManager = new SessionManager($this->config, $this->securityUtility);
         $this->viewCompiler = new ViewCompiler($privateDir, $this->sessionManager);
@@ -68,6 +68,8 @@ class App
             $this->db = new MysqlConnectionManager($this->config->databases);
         else
             $this->db = null;
+
+        $this->ipLock = null;
     }    
 
     /**
@@ -101,9 +103,22 @@ class App
             // TODO: Need process here that checks for remember_id token and attempts to re-authenticate the user if
             // one is found.
 
-            // TODO: Need process that verifies that this request contains a session token if this is a blocking route,
-            // and if it does not, then create a session, save any required data, and if ajax send appropriate response,
-            // or if not ajax, then do a redirect to referrer
+            // TODO: If user is authenticated, and this is a blocking route, upgrade lock to user id lock? Or perhaps
+            // we just don't worry about this for now?
+
+            // If blocking route, but no session token provided, block on ip address, create a new session
+            // token, proceed
+            if(Router::getActiveRoute()->isBlocking() && !$this->sessionManager->getSessionId())
+            {
+                if($this->config->lockable_datastore_type === 'file')
+                {
+                    $this->ipLock = new FileLockableDataStore($this->privateDir . '/storage/locks/ip');
+                    $this->ipLock->openLock($this->request->getIp());
+                    $this->ipLock->overwriteContents(time());
+
+                    $this->sessionManager->startNewSession();
+                }
+            }
 
             // Execute each middleware. If the return type is Dren\Response, send the response
             foreach(Router::getActiveRoute()->getMiddleware() as $m)
@@ -249,4 +264,10 @@ class App
     {
         return $this->securityUtility;
     }
+
+    public function getIpLock(): ?LockableDataStore
+    {
+        return $this->ipLock;
+    }
+
 }

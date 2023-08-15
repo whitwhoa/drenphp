@@ -18,6 +18,9 @@ class FileLockableDataStore implements LockableDataStore
 
         // register a shutdown function so that we can insure file locks are released whenever the script
         // terminates, whether that be successfully or via error
+        // Update: I'm told that file locks are released whenever script execution completes, but I'm not entirely
+        // sure that's correct...and what does that mean even? Like, when the script exits or when gc runs? Leaving
+        // this here because it makes me feel better.
         register_shutdown_function(function() {
 
             if($this->fileResource !== null)

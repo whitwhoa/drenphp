@@ -13,12 +13,14 @@ class Response
     private ?string $redirect;
     private string $type;
     private SessionManager $sessionManager;
+    private ?LockableDataStore $ipLock;
 
     public function __construct()
     {
         $this->code = 200;
         $this->redirect = null;
         $this->sessionManager = App::get()->getSessionManager();
+        $this->ipLock = App::get()->getIpLock();
     }
 
     public function setCode(int $httpCode) : object
@@ -57,6 +59,9 @@ class Response
     public function send() : void
     {
         $this->sessionManager->finalizeSessionState();
+
+        if($this->ipLock)
+            $this->ipLock->closeLock();
 
         if($this->redirect)
         {

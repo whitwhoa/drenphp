@@ -48,7 +48,8 @@ interface LockableDataStore
 
 
     /**
-     * Overwrite the contents of the datastore belonging to $id, with $dataToWrite, without performing any locking
+     * Overwrite the contents of the datastore belonging to $id, with $dataToWrite, without performing any locking.
+     * You need to know exactly why you are using this before you would ever use it.
      *
      * @param string $id
      * @param string $dataToWrite

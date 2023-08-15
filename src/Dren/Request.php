@@ -22,11 +22,11 @@ class Request
 
     private array $allowableMimes = [];
 
-    public function __construct(array $am)
+    public function __construct(array $am, string $ipParamName)
     {
         $this->allowableMimes = $am;
 
-        $this->setIp();
+        $this->setIp($ipParamName);
         $this->setMethod();
         $this->setURI();
         $this->setGetData();
@@ -171,9 +171,9 @@ class Request
         $this->postData = isset($_POST) ? (object)$_POST : NULL;
     }
 
-    private function setIp() : void
+    private function setIp(string $ipParamName) : void
     {
-        $this->ip = $_SERVER['REMOTE_ADDR'];
+        $this->ip = $_SERVER[$ipParamName];
     }
 
     private function setFiles() : void

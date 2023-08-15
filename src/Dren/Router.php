@@ -101,6 +101,7 @@ class Router
         $route = end($this->routes);
         $route->setRequestMethod('POST');
         $route->setUri($uriString);
+        $route->setBlocking(true);
 
         return $this;
     }

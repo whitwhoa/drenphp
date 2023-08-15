@@ -349,19 +349,22 @@ class SessionManager
             throw new Exception('Unable to open session lock for token. This should never happen.');
 
         $this->session = json_decode($this->sessionLockableDataStore->getContents());
-        $this->sessionLockableDataStore->closeLock();
+
+        // new sessions should always block because we don't know what could be writing to them, and they need to be
+        // persisted at the end of the request. Leaving this here for the time being, will come back and remove
+        // at a future date.
+        //$this->sessionLockableDataStore->closeLock();
 
         $this->setClientSessionId();
     }
 
     /**
      * Updates the session's last_used property, persists session to file data store, releases file lock
-     * TODO: does this need to be public?
      *
      * @return void
      * @throws Exception
      */
-    public function terminate(): void
+    private function terminate(): void
     {
         $this->session->last_used = time();
         $this->sessionLockableDataStore->overwriteContents(json_encode($this->session));
