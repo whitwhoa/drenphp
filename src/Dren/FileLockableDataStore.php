@@ -77,8 +77,8 @@ class FileLockableDataStore implements LockableDataStore
      */
     public function closeLock(): void
     {
-        if (!is_resource($this->fileResource))
-            throw new Exception("Attempting to close file resource which is not valid.");
+        if (!is_resource($this->fileResource)) // file not on server for some reason, so continue
+            return;
 
         $unlockSuccess = flock($this->fileResource, LOCK_UN);
         if (!$unlockSuccess)
@@ -172,5 +172,10 @@ class FileLockableDataStore implements LockableDataStore
     public function overwriteContentsUnsafe(string $id, string $dataToWrite): void
     {
         file_put_contents($this->directoryPath . '/' . $id, $dataToWrite);
+    }
+
+    public function idExists(string $id): bool
+    {
+        return file_exists($this->directoryPath . '/' . $id);
     }
 }

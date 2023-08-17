@@ -74,5 +74,12 @@ interface LockableDataStore
      */
     public function copyOwnership() : LockableDataStore;
 
+    /**
+     * Check if the provided $id is an existing LockableDataStore
+     *
+     * @param string $id
+     * @return bool
+     */
+    public function idExists(string $id) : bool;
 
 }

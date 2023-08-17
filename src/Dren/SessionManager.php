@@ -75,6 +75,11 @@ class SessionManager
         $this->updateSession();
     }
 
+    public function dataStoreExists(string $sessionId) : bool
+    {
+        return $this->tmpLockableDataStore->idExists($sessionId);
+    }
+
     private function getTokenFromClient(): void
     {
         $unverified_session_id = null;
@@ -344,6 +349,28 @@ class SessionManager
         }
     }
 
+    public function removeClientSessionId() : void
+    {
+        if($this->request->getRoute()->getRouteType() === 'web')
+        {
+            setcookie(
+                $this->config->web_client_name,
+                '',
+                [
+                    'expires' => time() - 3600,
+                    'path' => '/',
+                    'secure' => $this->config->cookie_secure,
+                    'httponly' => $this->config->cookie_httponly,  // HttpOnly flag
+                    'samesite' => $this->config->cookie_samesite  // SameSite attribute
+                ]
+            );
+        }
+        elseif($this->request->getRoute()->getRouteType() === 'mobile')
+        {
+            header($this->config->mobile_client_name . ': ' . 'REMOVE');
+        }
+    }
+
     /**
      * Used by other classes to generate a new session, and set client headers.
      *
@@ -471,5 +498,7 @@ class SessionManager
     {
         return $this->sessionId;
     }
+
+
 
 }

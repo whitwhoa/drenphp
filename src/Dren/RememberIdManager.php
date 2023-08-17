@@ -4,7 +4,7 @@ namespace Dren;
 
 use Exception;
 
-class RememberIdAuthenticator
+class RememberIdManager
 {
     private object $config;
     private ?MySQLCon $db;
@@ -13,7 +13,7 @@ class RememberIdAuthenticator
     private ?string $rememberId;
 
 
-    public function __construct(object $appConfig, ?MySQLCon $db, SecurityUtility $su)
+    public function __construct(object $appConfig, Request $request, ?MySQLCon $db, SecurityUtility $su)
     {
         $this->config = $appConfig;
         // We make this nullable because if we're running the framework without a database connection we'll never
@@ -21,7 +21,7 @@ class RememberIdAuthenticator
         // puke at runtime because we shouldn't be
         $this->db = $db;
         $this->securityUtility = $su;
-        $this->request = App::get()->getRequest();
+        $this->request = $request;
         $this->rememberId = null;
     }
 
@@ -101,7 +101,7 @@ class RememberIdAuthenticator
     public function getRememberIdAccount() : object
     {
         $q = <<<EOT
-            SELECT accounts_top_level.id as accont_id, accounts_top_level.username,
+            SELECT accounts_top_level.id as account_id, accounts_top_level.username,
             (
                 SELECT
                     JSON_ARRAYAGG(
@@ -172,7 +172,69 @@ class RememberIdAuthenticator
         {
             header($this->config->session->rid_mobile_client_name . ': ' . $encryptedToken);
         }
+    }
 
+    /**
+     * @throws Exception
+     */
+    public function clearRememberId() : void
+    {
+        // remove database entries for remember_id token
+        try
+        {
+            $this->db->beginTransaction();
+
+            // delete from remember_id_sessions
+            $q1 = <<<EOT
+                DELETE FROM remember_id_sessions WHERE remember_id = ?
+            EOT;
+
+            $this->db
+                ->query($q1, [$this->rememberId])
+                ->exec();
+
+            // delete from remember_ids
+            $q2 = <<<EOT
+                DELETE FROM remember_ids WHERE remember_id = ?
+            EOT;
+
+            $this->db
+                ->query($q2, [$this->rememberId])
+                ->exec();
+
+            $this->db->commitTransaction();
+        }
+        catch(Exception $e)
+        {
+            $this->db->rollbackTransaction();
+
+            throw new Exception($e->getMessage()); // handle further up the stack
+        }
+
+        // add parameters to response so client clears token
+        $this->removeClientRememberId();
+    }
+
+    private function removeClientRememberId() : void
+    {
+        if($this->request->getRoute()->getRouteType() === 'web')
+        {
+            setcookie(
+                $this->config->session->rid_web_client_name,
+                '',
+                [
+                    'expires' => time() - 3600,
+                    'path' => '/',
+                    'secure' => $this->config->session->cookie_secure,
+                    'httponly' => $this->config->session->cookie_httponly,  // HttpOnly flag
+                    'samesite' => $this->config->session->cookie_samesite  // SameSite attribute
+                ]
+            );
+        }
+        elseif($this->request->getRoute()->getRouteType() === 'mobile')
+        {
+            header($this->config->session->rid_mobile_client_name . ': ' . 'REMOVE');
+        }
     }
 
 }

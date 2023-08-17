@@ -21,7 +21,7 @@ class Logger
     public static function write(string $message): void
     {
         $timestamp = date('Y-m-d H:i:s');
-        self::$buffer[] = "[$timestamp] $message\n";
+        self::$buffer[] = "[$timestamp] $message";
     }
 
     public static function flush(): void
@@ -29,7 +29,7 @@ class Logger
         if (empty(self::$buffer)) return;
 
         $logData = implode("\n", self::$buffer);
-        file_put_contents(self::$logFilePath, $logData, FILE_APPEND);
+        file_put_contents(self::$logFilePath, $logData . "\n", FILE_APPEND);
         self::$buffer = [];
     }
 }

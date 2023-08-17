@@ -22,7 +22,7 @@ class App
     private HttpClient $httpClient;
     private ?LockableDataStore $ipLock;
     private ?LockableDataStore $ridLock;
-    private RememberIdAuthenticator $rememberIdAuthenticator;
+    private RememberIdManager $rememberIdManager;
 
     public static function init(string $privateDir): ?App
     {
@@ -69,13 +69,13 @@ class App
         if(isset($this->config->databases) && count($this->config->databases) > 0)
         {
             $this->db = new MysqlConnectionManager($this->config->databases);
-            $this->rememberIdAuthenticator = new RememberIdAuthenticator($this->config, $this->getDb(), $this->securityUtility);
+            $this->rememberIdManager = new RememberIdManager($this->config, $this->request, $this->getDb(), $this->securityUtility);
         }
 
         else
         {
             $this->db = null;
-            $this->rememberIdAuthenticator = new RememberIdAuthenticator($this->config, null, $this->securityUtility);
+            $this->rememberIdManager = new RememberIdManager($this->config, $this->request, null, $this->securityUtility);
         }
 
         $this->ipLock = null;
@@ -112,34 +112,32 @@ class App
 
             // Check for remember_id token and attempt to re-authenticate the user if one is found.
             // TODO: TEST THIS!!!!!
-            if(!$this->sessionManager->getSessionId())
+            $this->rememberIdManager->setRememberId();
+
+            if(!$this->sessionManager->getSessionId() && $this->rememberIdManager->hasRememberId())
             {
-                $this->rememberIdAuthenticator->setRememberId();
-                if($this->rememberIdAuthenticator->hasRememberId())
+                if($this->config->lockable_datastore_type === 'file')
                 {
-                    if($this->config->lockable_datastore_type === 'file')
-                    {
-                        $this->ridLock = new FileLockableDataStore($this->privateDir . '/storage/locks/rid');
-                        $this->ridLock->openLock($this->request->getIp());
-                        $this->ridLock->overwriteContents(time());
-                    }
-                    // TODO: add additional blocks for additional LockableDataStores
-
-                    $existingToken = $this->rememberIdAuthenticator->getRememberIdSession();
-
-                    if($existingToken !== null)
-                    {
-                        $this->sessionManager->useSessionId($existingToken);
-                    }
-                    else
-                    {
-                        $account = $this->rememberIdAuthenticator->getRememberIdAccount();
-                        $this->sessionManager->startNewSession($account->account_id, $account->roles);
-                        $this->rememberIdAuthenticator->associateSessionIdWithRememberId($this->sessionManager->getSessionId());
-                    }
-
-                    $this->ridLock->closeLock();
+                    $this->ridLock = new FileLockableDataStore($this->privateDir . '/storage/locks/rid');
+                    $this->ridLock->openLock($this->rememberIdManager->getRememberId());
+                    $this->ridLock->overwriteContents(time());
                 }
+                // TODO: add additional blocks for additional LockableDataStores
+
+                $existingToken = $this->rememberIdManager->getRememberIdSession();
+
+                if($existingToken !== null && $this->sessionManager->dataStoreExists($existingToken))
+                {
+                    $this->sessionManager->useSessionId($existingToken);
+                }
+                else
+                {
+                    $account = $this->rememberIdManager->getRememberIdAccount();
+                    $this->sessionManager->startNewSession($account->account_id, $account->roles);
+                    $this->rememberIdManager->associateSessionIdWithRememberId($this->sessionManager->getSessionId());
+                }
+
+                $this->ridLock->closeLock();
             }
 
 
@@ -315,9 +313,9 @@ class App
         return $this->ridLock;
     }
 
-    public function getRememberIdAuthenticator() : RememberIdAuthenticator
+    public function getRememberIdManager() : RememberIdManager
     {
-        return $this->rememberIdAuthenticator;
+        return $this->rememberIdManager;
     }
 
 }
