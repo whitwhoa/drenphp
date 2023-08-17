@@ -37,9 +37,11 @@ class SessionManager
     }
 
     /**
+     * Executed first within App. This happens for every request.
+     *
      * @throws Exception
      */
-    public function loadSession(Request $request): void
+    public function loadSession(Request $request) : void
     {
         try
         {
@@ -54,6 +56,23 @@ class SessionManager
         {
             throw new Exception('Something went wrong attempting to load session: ' . $e->getMessage());
         }
+    }
+
+    /**
+     * Used by App::execute to force usage of a provided session id. This would be used for the case where a user's
+     * session expires, but they have a remember_id, and tha remember_id was previously used to generate a session_id.
+     * Really only relevant if the user did not receive the initial response containing the new session_id, or if
+     * they had concurrent requests in flight whenever it was issued.
+     *
+     * @param string $sessionId
+     * @return void
+     * @throws Exception
+     */
+    public function useSessionId(string $sessionId) : void
+    {
+        $this->sessionId = $sessionId;
+        $this->setClientSessionId();
+        $this->updateSession();
     }
 
     private function getTokenFromClient(): void
@@ -81,7 +100,7 @@ class SessionManager
     /**
      * @throws Exception
      */
-    private function updateSession(): void
+    private function updateSession() : void
     {
         // If we were unable to obtain a lockable data store, then it's likely that it has been removed, so we treat
         // this request as if it did not send a session token.
@@ -211,7 +230,7 @@ class SessionManager
             $this->terminate();
     }
 
-    private function loadFlashed(): void
+    private function loadFlashed() : void
     {
         $this->flashed = $this->session->flash_data;
         $this->session->flash_data = (object)[];
@@ -220,7 +239,7 @@ class SessionManager
     /**
      * @throws Exception
      */
-    public function upgradeSession(int $accountId, array $roles): void
+    public function upgradeSession(int $accountId, array $roles) : void
     {
         if(!$this->request->getRoute()->isBlocking())
             throw new Exception('You are attempting to upgrade a session in a non-blocking route. This is not allowed.');
@@ -264,7 +283,7 @@ class SessionManager
      * @param array $accountRoles
      * @return string
      */
-    private function generateNewSession(?int $accountId = null, array $accountRoles = []): string
+    private function generateNewSession(?int $accountId = null, array $accountRoles = []) : string
     {
         // Generate the new signed session_id token
         $token = $this->securityUtility->generateSignedToken();
@@ -300,7 +319,7 @@ class SessionManager
      *
      * @return void
      */
-    private function setClientSessionId(): void
+    private function setClientSessionId() : void
     {
         // encrypt token for storage on client
         $encryptedToken = $this->securityUtility->encryptString($this->sessionId);
@@ -341,7 +360,7 @@ class SessionManager
      * @return void
      * @throws Exception
      */
-    public function startNewSession(?int $accountId = null, array $accountRoles = []): void
+    public function startNewSession(?int $accountId = null, array $accountRoles = []) : void
     {
         $this->sessionId = $this->generateNewSession($accountId, $accountRoles);
 
@@ -364,7 +383,7 @@ class SessionManager
      * @return void
      * @throws Exception
      */
-    private function terminate(): void
+    private function terminate() : void
     {
         $this->session->last_used = time();
         $this->sessionLockableDataStore->overwriteContents(json_encode($this->session));
@@ -378,7 +397,7 @@ class SessionManager
      * @return void
      * @throws Exception
      */
-    public function finalizeSessionState(): void
+    public function finalizeSessionState() : void
     {
         if(!$this->sessionId)
             return;
@@ -389,7 +408,7 @@ class SessionManager
         $this->terminate();
     }
 
-    public function saveFlash(string $key, mixed $data): void
+    public function saveFlash(string $key, mixed $data) : void
     {
         if(!$this->sessionId)
             $this->startNewSession();
@@ -397,7 +416,7 @@ class SessionManager
         $this->session->flash_data->{$key} = $data;
     }
 
-    public function getFlash(string $key): mixed
+    public function getFlash(string $key) : mixed
     {
         if(!$this->sessionId || !isset($this->flashed->{$key}))
             return null;
@@ -405,7 +424,7 @@ class SessionManager
         return $this->flashed->{$key};
     }
 
-    public function saveData(string $key, mixed $data): void
+    public function saveData(string $key, mixed $data) : void
     {
         if(!$this->sessionId)
             $this->startNewSession();
@@ -413,7 +432,7 @@ class SessionManager
         $this->session->data->{$key} = $data;
     }
 
-    public function getData(string $key): mixed
+    public function getData(string $key) : mixed
     {
         if(!$this->sessionId || !isset($this->session->data->{$key}))
             return null;
@@ -421,7 +440,7 @@ class SessionManager
         return $this->session->data->{$key};
     }
 
-    public function getCsrf(): string
+    public function getCsrf() : string
     {
         if(!$this->sessionId)
             $this->startNewSession();
@@ -429,7 +448,7 @@ class SessionManager
         return $this->session->csrf;
     }
 
-    public function isAuthenticated(): bool
+    public function isAuthenticated() : bool
     {
         if(!$this->sessionId)
             return false;
@@ -440,7 +459,7 @@ class SessionManager
         return true;
     }
 
-    public function getAccountId(): ?int
+    public function getAccountId() : ?int
     {
         if(!$this->session->account_id)
             return null;

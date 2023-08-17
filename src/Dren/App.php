@@ -21,6 +21,8 @@ class App
     private ViewCompiler $viewCompiler; // ViewCompiler
     private HttpClient $httpClient;
     private ?LockableDataStore $ipLock;
+    private ?LockableDataStore $ridLock;
+    private RememberIdAuthenticator $rememberIdAuthenticator;
 
     public static function init(string $privateDir): ?App
     {
@@ -65,11 +67,19 @@ class App
         $this->httpClient = new HttpClient($privateDir . '/storage/httpclient'); //TODO: this should be a config value
 
         if(isset($this->config->databases) && count($this->config->databases) > 0)
+        {
             $this->db = new MysqlConnectionManager($this->config->databases);
+            $this->rememberIdAuthenticator = new RememberIdAuthenticator($this->config, $this->getDb(), $this->securityUtility);
+        }
+
         else
+        {
             $this->db = null;
+            $this->rememberIdAuthenticator = new RememberIdAuthenticator($this->config, null, $this->securityUtility);
+        }
 
         $this->ipLock = null;
+        $this->ridLock = null;
     }    
 
     /**
@@ -100,8 +110,38 @@ class App
             // Process session
             $this->sessionManager->loadSession($this->request);
 
-            // TODO: Need process here that checks for remember_id token and attempts to re-authenticate the user if
-            // one is found.
+            // Check for remember_id token and attempt to re-authenticate the user if one is found.
+            // TODO: TEST THIS!!!!!
+            if(!$this->sessionManager->getSessionId())
+            {
+                $this->rememberIdAuthenticator->setRememberId();
+                if($this->rememberIdAuthenticator->hasRememberId())
+                {
+                    if($this->config->lockable_datastore_type === 'file')
+                    {
+                        $this->ridLock = new FileLockableDataStore($this->privateDir . '/storage/locks/rid');
+                        $this->ridLock->openLock($this->request->getIp());
+                        $this->ridLock->overwriteContents(time());
+                    }
+                    // TODO: add additional blocks for additional LockableDataStores
+
+                    $existingToken = $this->rememberIdAuthenticator->getRememberIdSession();
+
+                    if($existingToken !== null)
+                    {
+                        $this->sessionManager->useSessionId($existingToken);
+                    }
+                    else
+                    {
+                        $account = $this->rememberIdAuthenticator->getRememberIdAccount();
+                        $this->sessionManager->startNewSession($account->account_id, $account->roles);
+                        $this->rememberIdAuthenticator->associateSessionIdWithRememberId($this->sessionManager->getSessionId());
+                    }
+
+                    $this->ridLock->closeLock();
+                }
+            }
+
 
             // TODO: If user is authenticated, and this is a blocking route, upgrade lock to user id lock? Or perhaps
             // we just don't worry about this for now?
@@ -222,7 +262,7 @@ class App
          }
     }
 
-    public function getPrivateDir(): string
+    public function getPrivateDir() : string
     {
         return $this->privateDir;
     }
@@ -235,39 +275,49 @@ class App
     /**
      * @throws Exception
      */
-    public function getDb($dbName = null): MySQLCon
+    public function getDb($dbName = null) : MySQLCon
     {
         return $this->db->get($dbName);
     }
 
-    public function getRequest(): Request
+    public function getRequest() : Request
     {
         return $this->request;
     }
 
-    public function getSessionManager(): ?SessionManager
+    public function getSessionManager() : ?SessionManager
     {
         return $this->sessionManager;
     }
 
-    public function getViewCompiler(): ViewCompiler
+    public function getViewCompiler() : ViewCompiler
     {
         return $this->viewCompiler;
     }
 
-    public function getHttpClient(): HttpClient
+    public function getHttpClient() : HttpClient
     {
         return $this->httpClient;
     }
 
-    public function getSecurityUtility(): SecurityUtility
+    public function getSecurityUtility() : SecurityUtility
     {
         return $this->securityUtility;
     }
 
-    public function getIpLock(): ?LockableDataStore
+    public function getIpLock() : ?LockableDataStore
     {
         return $this->ipLock;
+    }
+
+    public function getRidLock() : ?LockableDataStore
+    {
+        return $this->ridLock;
+    }
+
+    public function getRememberIdAuthenticator() : RememberIdAuthenticator
+    {
+        return $this->rememberIdAuthenticator;
     }
 
 }
