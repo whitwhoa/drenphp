@@ -15,23 +15,43 @@ class App
     private string $privateDir;
     private object $config;
     private SecurityUtility $securityUtility;
-    private ?MysqlConnectionManager $db; // MySQLConnectionManager
-    private Request $request;
+    private ?MysqlConnectionManager $dbConMan; // MySQLConnectionManager
+    private ?Request $request;
     private ?SessionManager $sessionManager; // SessionManager
-    private ViewCompiler $viewCompiler; // ViewCompiler
+    private ?ViewCompiler $viewCompiler; // ViewCompiler
     private HttpClient $httpClient;
     private ?LockableDataStore $ipLock;
     private ?LockableDataStore $ridLock;
-    private RememberIdManager $rememberIdManager;
+    private ?RememberIdManager $rememberIdManager;
 
-    public static function init(string $privateDir): ?App
+    /**
+     * @throws Exception
+     */
+    public static function initHttp(string $privateDir): ?App
     {
-        if (self::$instance == null) 
+        if (self::$instance == null)
+        {
+            self::$instance = new App($privateDir);
+            self::$instance->_httpConstructor();
+        }
+
+        return self::$instance;
+    }
+
+    /**
+     * @throws Exception
+     */
+    public static function initCli(string $privateDir): ?App
+    {
+        if (self::$instance == null)
             self::$instance = new App($privateDir);
 
         return self::$instance;
     }
 
+    /**
+     * @throws Exception
+     */
     public static function get()
     {
         if(self::$instance == null)
@@ -57,30 +77,30 @@ class App
         $this->privateDir = $privateDir;
         $this->config = (require_once $privateDir . '/config.php');
         $this->injectPrivateDirIntoConfig();
-
         Logger::init($this->config->log_file);
+
         $this->securityUtility = new SecurityUtility($this->config->encryption_key);
-        $this->request = new Request($this->config->allowed_file_upload_mimes, $this->config->ip_param_name);
-
-        $this->sessionManager = new SessionManager($this->config, $this->securityUtility);
-        $this->viewCompiler = new ViewCompiler($privateDir, $this->sessionManager);
-        $this->httpClient = new HttpClient($privateDir . '/storage/httpclient'); //TODO: this should be a config value
-
+        $this->request = null;
+        $this->sessionManager = null;
+        $this->viewCompiler = null;
+        $this->httpClient = new HttpClient($this->privateDir . '/storage/httpclient'); //TODO: this should be a config value
+        $this->dbConMan = null;
         if(isset($this->config->databases) && count($this->config->databases) > 0)
-        {
-            $this->db = new MysqlConnectionManager($this->config->databases);
-            $this->rememberIdManager = new RememberIdManager($this->config, $this->request, $this->getDb(), $this->securityUtility);
-        }
-
-        else
-        {
-            $this->db = null;
-            $this->rememberIdManager = new RememberIdManager($this->config, $this->request, null, $this->securityUtility);
-        }
-
+            $this->dbConMan = new MysqlConnectionManager($this->config->databases);
         $this->ipLock = null;
         $this->ridLock = null;
-    }    
+        $this->rememberIdManager = null;
+    }
+
+    private function _httpConstructor() : void
+    {
+        $this->request = new Request($this->config->allowed_file_upload_mimes, $this->config->ip_param_name);
+        $this->sessionManager = new SessionManager($this->config, $this->securityUtility);
+        $this->viewCompiler = new ViewCompiler($this->privateDir, $this->sessionManager);
+
+        if(isset($this->config->databases) && count($this->config->databases) > 0)
+            $this->rememberIdManager = new RememberIdManager($this->config, $this->request, $this->getDb(), $this->securityUtility);
+    }
 
     /**
      * Inject $this->privateDir into every location that it is required within $this->config
@@ -97,7 +117,7 @@ class App
             $this->config->log_file = $this->privateDir . $this->config->log_file;
     }
 
-    public function execute() : void
+    public function executeHttp() : void
     {
         try
         {
@@ -110,36 +130,37 @@ class App
             // Process session
             $this->sessionManager->loadSession($this->request);
 
-            // Check for remember_id token and attempt to re-authenticate the user if one is found.
-            // TODO: TEST THIS!!!!!
-            $this->rememberIdManager->setRememberId();
-
-            if(!$this->sessionManager->getSessionId() && $this->rememberIdManager->hasRememberId())
+            if($this->rememberIdManager !== null)
             {
-                if($this->config->lockable_datastore_type === 'file')
-                {
-                    $this->ridLock = new FileLockableDataStore($this->privateDir . '/storage/locks/rid');
-                    $this->ridLock->openLock($this->rememberIdManager->getRememberId());
-                    $this->ridLock->overwriteContents(time());
-                }
-                // TODO: add additional blocks for additional LockableDataStores
+                // Check for remember_id token and attempt to re-authenticate the account if one is found.
+                $this->rememberIdManager->setRememberId();
 
-                $existingToken = $this->rememberIdManager->getRememberIdSession();
-
-                if($existingToken !== null && $this->sessionManager->dataStoreExists($existingToken))
+                if(!$this->sessionManager->getSessionId() && $this->rememberIdManager->hasRememberId())
                 {
-                    $this->sessionManager->useSessionId($existingToken);
-                }
-                else
-                {
-                    $account = $this->rememberIdManager->getRememberIdAccount();
-                    $this->sessionManager->startNewSession($account->account_id, $account->roles);
-                    $this->rememberIdManager->associateSessionIdWithRememberId($this->sessionManager->getSessionId());
-                }
+                    if($this->config->lockable_datastore_type === 'file')
+                    {
+                        $this->ridLock = new FileLockableDataStore($this->privateDir . '/storage/locks/rid');
+                        $this->ridLock->openLock($this->rememberIdManager->getRememberId());
+                        $this->ridLock->overwriteContents(time());
+                    }
+                    // TODO: add additional blocks for additional LockableDataStores
 
-                $this->ridLock->closeLock();
+                    $existingToken = $this->rememberIdManager->getRememberIdSession();
+
+                    if($existingToken !== null && $this->sessionManager->dataStoreExists($existingToken))
+                    {
+                        $this->sessionManager->useSessionId($existingToken);
+                    }
+                    else
+                    {
+                        $account = $this->rememberIdManager->getRememberIdAccount();
+                        $this->sessionManager->startNewSession($account->account_id, $account->roles);
+                        $this->rememberIdManager->associateSessionIdWithRememberId($this->sessionManager->getSessionId());
+                    }
+
+                    $this->ridLock->closeLock();
+                }
             }
-
 
             // TODO: If user is authenticated, and this is a blocking route, upgrade lock to user id lock? Or perhaps
             // we just don't worry about this for now?
@@ -275,7 +296,7 @@ class App
      */
     public function getDb($dbName = null) : MySQLCon
     {
-        return $this->db->get($dbName);
+        return $this->dbConMan->get($dbName);
     }
 
     public function getRequest() : Request
