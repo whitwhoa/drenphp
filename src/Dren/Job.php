@@ -6,11 +6,11 @@ use Exception;
 
 abstract class Job
 {
-    protected mixed $data; // decoded json, so either an array, an object, or null
+    protected mixed $data; // decoded json, so either an array, an stdClass, or null
 
-    function __construct(?string $data = null)
+    function __construct(mixed $data = null)
     {
-        $this->data = !$data ? null : json_decode($data);
+        $this->data = !$data ? null : $data;
     }
 
     abstract public function preCondition() : bool;
