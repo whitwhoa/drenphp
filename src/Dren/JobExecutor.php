@@ -4,10 +4,54 @@ namespace Dren;
 
 class JobExecutor
 {
-    public function prepareJsonForCLI(mixed $data) : string
+    private string $privateDir;
+
+    function __construct()
+    {
+        $this->privateDir = App::get()->getPrivateDir();
+    }
+
+    public function encodeForCLI(mixed $data) : string
     {
         $json = json_encode($data);
         return escapeshellarg($json);
+    }
+
+    /**
+     * Execute a shell command in the background.
+     *
+     * @param string $command     The command to execute.
+     * @param string $outputFile  The file where the command output should be directed. Defaults to /dev/null.
+     * @return void
+     */
+    function runInBackground(string $command, string $outputFile = '/dev/null'): void
+    {
+        // Format the command to redirect its output and run it in the background
+        $formattedCommand = sprintf('%s > %s 2>&1 & echo $!', $command, $outputFile);
+
+        // Execute the command
+        shell_exec($formattedCommand);
+    }
+
+    /**
+     * TODO: this needs to take into account the fact that (while not likely to happen for MY use cases, it could)
+     * command line arguments have a max size, often 2mb. In order to work around this, we could add functionality
+     * to check if the size is reaching that limit, and if so, use temp files and xargs
+     *
+     * @param array $jobs
+     * @return void
+     */
+    public function exec(array $jobs) : void
+    {
+        if(count($jobs) === 0)
+            return;
+
+        $command = "php " . $this->privateDir . "/runjob";
+
+        foreach($jobs as $j)
+            $command .= " " . $j[0] . " " . $this->encodeForCLI($j[1]);
+
+        $this->runInBackground($command);
     }
 
     /* Function for parsing crontab entries and determining if they match the
