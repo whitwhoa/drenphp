@@ -4,6 +4,7 @@ namespace Dren;
 
 use Exception;
 
+
 class FileLockableDataStore implements LockableDataStore
 {
     private string $directoryPath;
@@ -23,8 +24,7 @@ class FileLockableDataStore implements LockableDataStore
         // this here because it makes me feel better.
         register_shutdown_function(function() {
 
-            if($this->fileResource !== null)
-                $this->closeLock();
+            $this->closeLock();
 
         });
 
@@ -77,7 +77,10 @@ class FileLockableDataStore implements LockableDataStore
      */
     public function closeLock(): void
     {
-        if (!is_resource($this->fileResource)) // file not on server for some reason, so continue
+        if($this->fileResource === null)
+            return;
+
+        if (!is_resource($this->fileResource))
             return;
 
         $unlockSuccess = flock($this->fileResource, LOCK_UN);
@@ -133,6 +136,8 @@ class FileLockableDataStore implements LockableDataStore
         $bytesWritten = fwrite($this->fileResource, $dataToWrite);
         if ($bytesWritten === false)
             throw new Exception("Failed to write to file.");
+
+        fflush($this->fileResource);
     }
 
     /**
@@ -154,6 +159,8 @@ class FileLockableDataStore implements LockableDataStore
         $bytesWritten = fwrite($this->fileResource, $dataToWrite);
         if ($bytesWritten === false)
             throw new Exception("Failed to write to file.");
+
+        fflush($this->fileResource);
     }
 
     public function copyOwnership(): LockableDataStore
@@ -177,5 +184,62 @@ class FileLockableDataStore implements LockableDataStore
     public function idExists(string $id): bool
     {
         return file_exists($this->directoryPath . '/' . $id);
+    }
+
+    public function idLocked(string $id): bool
+    {
+        $fullPath = $this->directoryPath . '/' . $id;
+
+        $fp = @fopen($fullPath, 'r');
+
+        if(!$fp)
+            return false;
+
+        if (!flock($fp, LOCK_EX|LOCK_NB))
+        {
+            fclose($fp);
+            return true;
+        }
+
+        fclose($fp);
+        return false;
+    }
+
+    public function deleteUnsafe(): void
+    {
+        unlink($this->fileFullPath);
+    }
+
+    public function deleteUnsafeById(string $id) : void
+    {
+        unlink($this->directoryPath . '/' . $id);
+    }
+
+    public function getContentsUnsafe(string $id): string
+    {
+        return file_get_contents($this->directoryPath . '/' . $id);
+    }
+
+    public function tryToLock(string $id): bool
+    {
+        $fullPath = $this->directoryPath . '/' . $id;
+
+        // Open the file for reading and writing. Suppress the error here as we don't care about it since we're using
+        // the error logic to determine if the file is present or not, and if not we're returning false
+        $this->fileResource = @fopen($fullPath, 'r+');
+
+        if($this->fileResource === false)
+            return false;
+
+        // Now, if file was opened successfully, try to get a lock without blocking.
+        if (flock($this->fileResource, LOCK_EX | LOCK_NB) === false) // Attempt to acquire an exclusive lock, return immediately if one cannot be acquired
+        {
+            fclose($this->fileResource);
+            return false;
+        }
+
+        $this->fileFullPath = $fullPath;
+
+        return true;
     }
 }

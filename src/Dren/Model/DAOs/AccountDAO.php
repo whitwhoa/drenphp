@@ -7,12 +7,6 @@ use Exception;
 
 class AccountDAO extends DAO
 {
-
-    public function __construct()
-    {
-        parent::__construct();
-    }
-
     /**
      * @throws Exception
      */

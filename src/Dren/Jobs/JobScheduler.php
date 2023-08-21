@@ -7,6 +7,8 @@ use Dren\JobExecutor;
 
 abstract class JobScheduler extends Job
 {
+    use SequentialJob;
+
     /*
      * [
      *      [
