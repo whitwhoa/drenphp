@@ -162,6 +162,22 @@ class MySQLCon
     }
 
     /**
+     * Convert a string representation of an integer to an integer, or return null if string is not an integer
+     *
+     * Useful when obtaining newly created ids of int type, as $this->_mysql->lastInsertId() returns strings
+     *
+     * @param string $str
+     * @return int|null
+     */
+    public function string_to_int(string $str) : ?int
+    {
+        if (preg_match('/^-?\d+$/', $str))
+            return (int)$str;
+
+        return null;
+    }
+
+    /**
      * Automatically generate the prepared statement based on the variable types
      * provided in parameter $bindArray and execute
      *

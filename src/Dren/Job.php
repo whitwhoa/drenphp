@@ -14,6 +14,7 @@ abstract class Job implements JobExecutionTypeInterface
     private JobDAO $jobDao;
     protected ?string $successMessage;
     private ?string $jobLockId;
+    private ?int $executionId;
 
     function __construct(mixed $data = null)
     {
@@ -26,6 +27,7 @@ abstract class Job implements JobExecutionTypeInterface
         $this->jobDao = new JobDAO();
         $this->successMessage = null;
         $this->jobLockId = null;
+        $this->executionId = null;
     }
 
     abstract public function preCondition() : bool;
@@ -40,6 +42,27 @@ abstract class Job implements JobExecutionTypeInterface
 	public function run() : bool
     {
         // TODO: register a shutdown function to handle when fatal error occurs
+        // This was naive, while it would be fine for the scheduled jobs, this will not work for the worker queues,
+        // since they never exit. We would end up with thousands of registered functions for every successful execution
+        // because the callback captures the object reference, also meaning that no instantiated job class would ever
+        // be picked up by the garbage collector...0_0...
+        //
+        // Not quite sure how to go about this now really...great...
+        register_shutdown_function(function() {
+
+            $error = error_get_last();
+            if($error !== null)
+            {
+                if($this->executionId !== null)
+                    $this->jobDao->updateJobExecution($this->executionId, date('Y-m-d H:i:s'), 'FAILED', 'FAILED', var_export($error, true));
+                else
+                    Logger::write(var_export($error, true));
+            }
+
+            $this->mutex->closeLock();
+            $this->mutex->deleteUnsafe();
+
+        });
 
         // TODO: break this into multiple private functions and then have run() dictate which function is called
         // based on $this->isConcurrent()
@@ -53,7 +76,10 @@ abstract class Job implements JobExecutionTypeInterface
                 if(!$this->mutex->tryToLock($this->jobLockId))
                     return false; // unable to get lock so another process is doing something with this job, get out
 
-                $this->jobDao->updateJobExecution((int)$this->mutex->getContents(), date('Y-m-d H:i:s'), 'FAILED', 'INTERRUPTED');
+                $prevId = $this->mutex->getContents();
+                if($prevId != '')
+                    $this->jobDao->updateJobExecution((int)$this->mutex->getContents(), date('Y-m-d H:i:s'),
+                        'FAILED', 'INTERRUPTED', null);
             }
             else
             {
@@ -73,21 +99,34 @@ abstract class Job implements JobExecutionTypeInterface
                 return true;
             }
 
+            $this->executionId = $this->jobDao->createJobExecution(getmypid(), $this->jobLockId, date('Y-m-d H:i:s'), 'RUNNING');
+            $this->mutex->overwriteContents($this->executionId);
 
             $this->logic();
 
-            // TODO: close and delete mutex, write to database as successful
+            // write to database as successful, close and delete mutex
+            $this->jobDao->updateJobExecution($this->executionId, date('Y-m-d H:i:s'), 'COMPLETED',
+                'SUCCESS', $this->successMessage);
+            $this->mutex->closeLock();
+            $this->mutex->deleteUnsafe();
 
+            return true;
         }
         catch(Exception $e)
         {
-            // TODO: close and delete mutex, write to database as un-successful
+            $errorMessage = $e->getMessage() . ":" . $e->getTraceAsString();
 
-            Logger::write($e->getMessage() . ":" . $e->getTraceAsString());
+            // write to database as un-successful if we have an execution id, otherwise write to log, close and delete mutex
+            if($this->executionId !== null)
+                $this->jobDao->updateJobExecution($this->executionId, date('Y-m-d H:i:s'), 'FAILED','FAILED', $errorMessage);
+            else
+                Logger::write($errorMessage);
+
+            $this->mutex->closeLock();
+            $this->mutex->deleteUnsafe();
+
             return false;
         }
-
-        return true;
     }
 
     private function generateFilenameFromObject(): string

@@ -22,11 +22,11 @@ class FileLockableDataStore implements LockableDataStore
         // Update: I'm told that file locks are released whenever script execution completes, but I'm not entirely
         // sure that's correct...and what does that mean even? Like, when the script exits or when gc runs? Leaving
         // this here because it makes me feel better.
-        register_shutdown_function(function() {
-
-            $this->closeLock();
-
-        });
+//        register_shutdown_function(function() {
+//
+//            $this->closeLock();
+//
+//        });
 
     }
 
@@ -207,7 +207,8 @@ class FileLockableDataStore implements LockableDataStore
 
     public function deleteUnsafe(): void
     {
-        unlink($this->fileFullPath);
+        if(file_exists($this->fileFullPath))
+            unlink($this->fileFullPath);
     }
 
     public function deleteUnsafeById(string $id) : void
