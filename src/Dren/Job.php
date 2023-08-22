@@ -9,25 +9,16 @@ use Exception;
 abstract class Job implements JobExecutionTypeInterface
 {
     protected mixed $data; // decoded json, so either an array, an stdClass, or null
+
     protected bool $concurrentExecutionAllowed;
-    private LockableDataStore $mutex;
-    private JobDAO $jobDao;
+
     protected ?string $successMessage;
-    private ?string $jobLockId;
-    private ?int $executionId;
 
     function __construct(mixed $data = null)
     {
         $this->data = !$data ? null : $data;
         $this->setExecutionType();
-
-        if(App::get()->getConfig()->jobs_lockable_datastore_type === 'file')
-            $this->mutex = new FileLockableDataStore(App::get()->getPrivateDir() . '/storage/locks/jobs');
-
-        $this->jobDao = new JobDAO();
         $this->successMessage = null;
-        $this->jobLockId = null;
-        $this->executionId = null;
     }
 
     abstract public function preCondition() : bool;
@@ -37,6 +28,11 @@ abstract class Job implements JobExecutionTypeInterface
     public function isConcurrent() : bool
     {
         return $this->concurrentExecutionAllowed;
+    }
+
+    public function getSuccessMessage() : ?string
+    {
+        return $this->successMessage;
     }
 
 	public function run() : bool
@@ -105,8 +101,7 @@ abstract class Job implements JobExecutionTypeInterface
             $this->logic();
 
             // write to database as successful, close and delete mutex
-            $this->jobDao->updateJobExecution($this->executionId, date('Y-m-d H:i:s'), 'COMPLETED',
-                'SUCCESS', $this->successMessage);
+            $this->jobDao->updateJobExecution($this->executionId, date('Y-m-d H:i:s'), 'COMPLETED', 'SUCCESS', $this->successMessage);
             $this->mutex->closeLock();
             $this->mutex->deleteUnsafe();
 
@@ -129,7 +124,7 @@ abstract class Job implements JobExecutionTypeInterface
         }
     }
 
-    private function generateFilenameFromObject(): string
+    public function generateFilenameFromObject(): string
     {
         return str_replace('\\', '_', get_class($this));
     }

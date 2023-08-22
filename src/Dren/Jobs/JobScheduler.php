@@ -45,6 +45,9 @@ abstract class JobScheduler extends Job
 
     public function logic(): void
     {
+        // TODO: can we put some logic here to do the checking for lock files that exist that aren't locked
+        // and subsequent updates, I think this is where we'd want it to be
+
         $this->schedule();
 
         foreach($this->scheduleData as $sd)

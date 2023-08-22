@@ -5,15 +5,15 @@ namespace Dren;
 use Exception;
 
 
-class FileLockableDataStore implements LockableDataStore
+class FileLockableDataStore extends LockableDataStore
 {
-    private string $directoryPath;
     private mixed $fileResource;
     private ?string $fileFullPath;
 
     public function __construct(string $directoryPath)
     {
-        $this->directoryPath = $directoryPath;
+        parent::__construct($directoryPath);
+
         $this->fileFullPath = null;
         $this->fileResource = null;
 
@@ -32,7 +32,7 @@ class FileLockableDataStore implements LockableDataStore
 
     public function openLock(string $id): bool
     {
-        $fullPath = $this->directoryPath . '/' . $id;
+        $fullPath = $this->containerName . '/' . $id;
 
         // Open the file for reading and writing. If it doesn't exist, create it.
         $this->fileResource = fopen($fullPath, 'c+');
@@ -52,7 +52,7 @@ class FileLockableDataStore implements LockableDataStore
 
     public function openLockIfExists(string $id): bool
     {
-        $fullPath = $this->directoryPath . '/' . $id;
+        $fullPath = $this->containerName . '/' . $id;
 
         // Open the file for reading and writing. Suppress the error here as we don't care about it since we're using
         // the error logic to determine if the file is present or not, and if not we're returning false
@@ -178,17 +178,17 @@ class FileLockableDataStore implements LockableDataStore
 
     public function overwriteContentsUnsafe(string $id, string $dataToWrite): void
     {
-        file_put_contents($this->directoryPath . '/' . $id, $dataToWrite);
+        file_put_contents($this->containerName . '/' . $id, $dataToWrite);
     }
 
     public function idExists(string $id): bool
     {
-        return file_exists($this->directoryPath . '/' . $id);
+        return file_exists($this->containerName . '/' . $id);
     }
 
     public function idLocked(string $id): bool
     {
-        $fullPath = $this->directoryPath . '/' . $id;
+        $fullPath = $this->containerName . '/' . $id;
 
         $fp = @fopen($fullPath, 'r');
 
@@ -213,17 +213,17 @@ class FileLockableDataStore implements LockableDataStore
 
     public function deleteUnsafeById(string $id) : void
     {
-        unlink($this->directoryPath . '/' . $id);
+        unlink($this->containerName . '/' . $id);
     }
 
     public function getContentsUnsafe(string $id): string
     {
-        return file_get_contents($this->directoryPath . '/' . $id);
+        return file_get_contents($this->containerName . '/' . $id);
     }
 
     public function tryToLock(string $id): bool
     {
-        $fullPath = $this->directoryPath . '/' . $id;
+        $fullPath = $this->containerName . '/' . $id;
 
         // Open the file for reading and writing. Suppress the error here as we don't care about it since we're using
         // the error logic to determine if the file is present or not, and if not we're returning false
@@ -242,5 +242,10 @@ class FileLockableDataStore implements LockableDataStore
         $this->fileFullPath = $fullPath;
 
         return true;
+    }
+
+    public function getAllElementsInContainer(): array
+    {
+        // TODO: Implement getAllElementsInContainer() method.
     }
 }
