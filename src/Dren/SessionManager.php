@@ -189,7 +189,7 @@ class SessionManager
             return;
         }
 
-        Logger::write('Regenerating session token due to ttl expiration');
+        //Logger::debug('Regenerating session token due to ttl expiration');
 
         // ...if it is, we generate a new token and copy the data from this session into the new
         // session, then take the new sessionId and save it as the updated_token property within the old session,
@@ -249,7 +249,7 @@ class SessionManager
         if(!$this->request->getRoute()->isBlocking())
             throw new Exception('You are attempting to upgrade a session in a non-blocking route. This is not allowed.');
 
-        Logger::write('Regenerating session due to successful account authentication');
+        //Logger::debug('Regenerating session due to successful account authentication');
 
         $newToken = $this->generateNewSession();
 

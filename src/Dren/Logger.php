@@ -21,7 +21,25 @@ class Logger
     public static function write(string $message): void
     {
         $timestamp = date('Y-m-d H:i:s');
-        self::$buffer[] = "[$timestamp] $message";
+        self::$buffer[] = "--[$timestamp] |--MESSAGE--| $message";
+    }
+
+    public static function error(string $message): void
+    {
+        $timestamp = date('Y-m-d H:i:s');
+        self::$buffer[] = "--[$timestamp] |--ERROR--| $message";
+    }
+
+    public static function debug(string $message): void
+    {
+        $timestamp = date('Y-m-d H:i:s');
+        self::$buffer[] = "--[$timestamp] |--DEBUG--| $message";
+    }
+
+    public static function warning(string $message): void
+    {
+        $timestamp = date('Y-m-d H:i:s');
+        self::$buffer[] = "--[$timestamp] |--WARNING--| $message";
     }
 
     public static function flush(): void

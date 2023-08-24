@@ -2,8 +2,13 @@
 
 namespace Dren\Jobs;
 
+use Dren\App;
+use Dren\FileLockableDataStore;
 use Dren\Job;
 use Dren\JobExecutor;
+use Dren\LockableDataStore;
+use Dren\Model\DAOs\JobDAO;
+use Exception;
 
 abstract class JobScheduler extends Job
 {
@@ -30,12 +35,21 @@ abstract class JobScheduler extends Job
     private array $scheduleData;
     private JobExecutor $jobExecutor;
 
+    private LockableDataStore $lockableDataStore;
+    private JobDAO $jobDao;
+
     function __construct(mixed $data = null)
     {
         parent::__construct($data);
 
         $this->scheduleData = [];
         $this->jobExecutor = new JobExecutor();
+
+        if(App::get()->getConfig()->jobs_lockable_datastore_type === 'file')
+            $this->lockableDataStore = new FileLockableDataStore(App::get()->getPrivateDir() . '/storage/locks/jobs');
+
+        $this->jobDao = new JobDAO();
+
     }
 
     public function preCondition(): bool
@@ -43,10 +57,12 @@ abstract class JobScheduler extends Job
         return true;
     }
 
+    /**
+     * @throws Exception
+     */
     public function logic(): void
     {
-        // TODO: can we put some logic here to do the checking for lock files that exist that aren't locked
-        // and subsequent updates, I think this is where we'd want it to be
+        $this->cleanInterrupted();
 
         $this->schedule();
 
@@ -84,5 +100,29 @@ abstract class JobScheduler extends Job
             $unixCronTab,
             $aggregateJob
         ];
+    }
+
+    /**
+     * @throws Exception
+     */
+    private function cleanInterrupted() : void
+    {
+        $lockFiles = $this->lockableDataStore->getAllElementsInContainer();
+
+        foreach($lockFiles as $fn)
+        {
+            if(!$this->lockableDataStore->idLocked($fn))
+            {
+                // if we're able to acquire a lock, then something happened to the executing process before it could
+                // successfully remove the file, thus we need to update the execution id's database record to indicate
+                // that this execution of the job was interrupted. There's a theoretical race-condition here since there's
+                // an ever so slight chance that we could make it here in between the job releasing the lock and deleting
+                // the file, but it's so small, I'm going to ignore it.
+                $this->jobDao->updateJobExecution((int)$this->lockableDataStore->getContentsUnsafe($fn),
+                    date('Y-m-d H:i:s'),'FAILED', 'INTERRUPTED', null);
+
+                $this->lockableDataStore->deleteUnsafeById($fn);
+            }
+        }
     }
 }

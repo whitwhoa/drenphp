@@ -106,6 +106,9 @@ class FileLockableDataStore extends LockableDataStore
             throw new Exception('Attempting to getContents of FileLockingDataStore which has no File Resource');
 
         clearstatcache(true, $this->fileFullPath); // Clear stat cache for the file
+
+        rewind($this->fileResource);
+
         $contents = fread($this->fileResource, filesize($this->fileFullPath)); // Read the entire file
 
         if(!$contents)
@@ -207,7 +210,7 @@ class FileLockableDataStore extends LockableDataStore
 
     public function deleteUnsafe(): void
     {
-        if(file_exists($this->fileFullPath))
+        if($this->fileFullPath !== null && file_exists($this->fileFullPath))
             unlink($this->fileFullPath);
     }
 
@@ -246,6 +249,15 @@ class FileLockableDataStore extends LockableDataStore
 
     public function getAllElementsInContainer(): array
     {
-        // TODO: Implement getAllElementsInContainer() method.
+        if(!is_dir($this->containerName))
+            return [];
+
+        // Scan the directory for files
+        $files = scandir($this->containerName);
+
+        // Filter out the current and parent directory
+        $files = array_diff($files, ['.', '..', '.gitkeep']);
+
+        return $files;
     }
 }

@@ -12,12 +12,13 @@ class JobDAO extends DAO
     /**
      * @throws Exception
      */
-    public function updateJobExecution(int $executionId, string $endTime, string $status, string $exitCode, ?string $exitMessage) : void
+    public function updateJobExecution(int $executionId, string $endTime, string $status, string $exitCode, ?string $exitMessage = null) : void
     {
-        $this->db->query("UPDATE job_executions SET end_time = ?, status = ?, exit_code = ? WHERE id = ?", [
+        $this->db->query("UPDATE job_executions SET end_time = ?, status = ?, exit_code = ?, exit_message = ? WHERE id = ?", [
             $endTime,
             $status,
             $exitCode,
+            $exitMessage,
             $executionId
         ])->exec();
     }

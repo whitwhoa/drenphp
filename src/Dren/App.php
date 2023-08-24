@@ -31,7 +31,7 @@ class App
     {
         if (self::$instance == null)
         {
-            self::$instance = new App($privateDir);
+            self::$instance = new App($privateDir, '/storage/application.log');
             self::$instance->_httpConstructor();
         }
 
@@ -44,7 +44,7 @@ class App
     public static function initCli(string $privateDir): ?App
     {
         if (self::$instance == null)
-            self::$instance = new App($privateDir);
+            self::$instance = new App($privateDir, '/storage/job.log');
 
         return self::$instance;
     }
@@ -65,9 +65,9 @@ class App
      * initialized and passed to any other requiring classes
      *
      * @param string $privateDir
-     * @throws Exception
+     * @param string $logFile
      */
-    private function __construct(string $privateDir)
+    private function __construct(string $privateDir, string $logFile)
     {
         //TODO: I suppose we need a try catch here so we can display a super generic omg message to the user
         // since if something errors here, we can't proceed into the actual execution of the app where we would
@@ -76,8 +76,7 @@ class App
 
         $this->privateDir = $privateDir;
         $this->config = (require_once $privateDir . '/config.php');
-        $this->injectPrivateDirIntoConfig();
-        Logger::init($this->config->log_file);
+        Logger::init($this->privateDir . $logFile);
 
         $this->securityUtility = new SecurityUtility($this->config->encryption_key);
         $this->request = null;
@@ -100,21 +99,6 @@ class App
 
         if(isset($this->config->databases) && count($this->config->databases) > 0)
             $this->rememberIdManager = new RememberIdManager($this->config, $this->request, $this->getDb(), $this->securityUtility);
-    }
-
-    /**
-     * Inject $this->privateDir into every location that it is required within $this->config
-     */
-    private function injectPrivateDirIntoConfig() : void
-    {
-        if(isset($this->config->session->directory))
-            $this->config->session->directory = $this->privateDir . $this->config->session->directory;
-
-        if(isset($this->config->session->rid_lock_dir))
-            $this->config->session->rid_lock_dir = $this->privateDir . $this->config->session->rid_lock_dir;
-
-        if(isset($this->config->log_file))
-            $this->config->log_file = $this->privateDir . $this->config->log_file;
     }
 
     public function executeHttp() : void
@@ -263,7 +247,7 @@ class App
         }
         catch (Exception|PDOException $e)
         {
-            Logger::write($e->getMessage() . ":" . $e->getTraceAsString());
+            Logger::error($e->getMessage() . ":" . $e->getTraceAsString());
 
             //if($this->request->expectsJson())
             if($this->request->isAjax())
