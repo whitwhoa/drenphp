@@ -46,4 +46,16 @@ class JobDAO extends DAO
         ])->exec();
     }
 
+    /**
+     * @throws Exception
+     */
+    public function createJobQueue(string $name, string $data, int $workerId) : ?int
+    {
+        return $this->db->query("INSERT INTO job_queue(name, data, worker_id) VALUES(?,?,?)", [
+            $name,
+            $data,
+            $workerId
+        ])->exec();
+    }
+
 }
