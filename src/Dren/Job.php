@@ -14,11 +14,14 @@ abstract class Job implements JobExecutionTypeInterface
 
     protected ?string $successMessage;
 
+    protected bool $trackExecution;
+
     function __construct(mixed $data = null)
     {
         $this->data = !$data ? null : $data;
         $this->setExecutionType();
         $this->successMessage = null;
+        $this->trackExecution = true;
     }
 
     abstract public function preCondition() : bool;
@@ -33,6 +36,11 @@ abstract class Job implements JobExecutionTypeInterface
     public function getSuccessMessage() : ?string
     {
         return $this->successMessage;
+    }
+
+    public function shouldTrackExecution() : bool
+    {
+        return $this->trackExecution;
     }
 
     public function generateFilenameFromObject(): string

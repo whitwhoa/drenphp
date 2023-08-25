@@ -50,6 +50,7 @@ abstract class JobScheduler extends Job
 
         $this->jobDao = new JobDAO();
 
+        $this->trackExecution = false;
     }
 
     public function preCondition(): bool
