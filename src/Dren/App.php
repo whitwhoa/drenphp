@@ -31,7 +31,7 @@ class App
     {
         if (self::$instance == null)
         {
-            self::$instance = new App($privateDir, '/storage/application.log');
+            self::$instance = new App($privateDir, '/storage/system/logs/application.log');
             self::$instance->_httpConstructor();
         }
 
@@ -44,7 +44,7 @@ class App
     public static function initCli(string $privateDir): ?App
     {
         if (self::$instance == null)
-            self::$instance = new App($privateDir, '/storage/job.log');
+            self::$instance = new App($privateDir, '/storage/system/logs/job.log');
 
         return self::$instance;
     }
@@ -82,7 +82,7 @@ class App
         $this->request = null;
         $this->sessionManager = null;
         $this->viewCompiler = null;
-        $this->httpClient = new HttpClient($this->privateDir . '/storage/httpclient'); //TODO: this should be a config value
+        $this->httpClient = new HttpClient($this->privateDir . '/storage/system/httpclient');
         $this->dbConMan = null;
         if(isset($this->config->databases) && count($this->config->databases) > 0)
             $this->dbConMan = new MysqlConnectionManager($this->config->databases);
@@ -123,7 +123,7 @@ class App
                 {
                     if($this->config->lockable_datastore_type === 'file')
                     {
-                        $this->ridLock = new FileLockableDataStore($this->privateDir . '/storage/locks/rid');
+                        $this->ridLock = new FileLockableDataStore($this->privateDir . '/storage/system/locks/rid');
                         $this->ridLock->openLock($this->rememberIdManager->getRememberId());
                         $this->ridLock->overwriteContents(time());
                     }
@@ -155,7 +155,7 @@ class App
             {
                 if($this->config->lockable_datastore_type === 'file')
                 {
-                    $this->ipLock = new FileLockableDataStore($this->privateDir . '/storage/locks/ip');
+                    $this->ipLock = new FileLockableDataStore($this->privateDir . '/storage/system/locks/ip');
                     $this->ipLock->openLock($this->request->getIp());
                     $this->ipLock->overwriteContents(time());
 

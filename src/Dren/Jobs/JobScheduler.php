@@ -46,7 +46,7 @@ abstract class JobScheduler extends Job
         $this->jobExecutor = new JobExecutor();
 
         if(App::get()->getConfig()->jobs_lockable_datastore_type === 'file')
-            $this->lockableDataStore = new FileLockableDataStore(App::get()->getPrivateDir() . '/storage/locks/jobs');
+            $this->lockableDataStore = new FileLockableDataStore(App::get()->getPrivateDir() . '/storage/system/locks/jobs');
 
         $this->jobDao = new JobDAO();
 
