@@ -14,7 +14,7 @@
     },
     "autoload": {
 		"files": [
-          "src/Dren/functions.php"
+            "src/functions.php"
 		],
         "psr-4":{
             "Dren\\": "src/Dren"

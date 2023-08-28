@@ -33,16 +33,17 @@ class JobDAO extends DAO
      * @return int|null
      * @throws Exception
      */
-    public function createJobExecution(string $processId, string $name, string $startTime, string $status) : ?int
+    public function createJobExecution(string $processId, string $name, string $startTime, string $status, ?string $data = null) : ?int
     {
         // TODO: curious to see how this plays out when we enable strict types, as the pdo method lastInsertId returns
         // strings, thus there must be some sort of type juggling going on or something since this method returns a
         // nullable int
-        return $this->db->query("INSERT INTO job_executions(process_id, name, start_time, status) VALUES(?,?,?,?)", [
+        return $this->db->query("INSERT INTO job_executions(process_id, name, start_time, status, data) VALUES(?,?,?,?,?)", [
             $processId,
             $name,
             $startTime,
-            $status
+            $status,
+            $data
         ])->exec();
     }
 
@@ -56,6 +57,16 @@ class JobDAO extends DAO
             $data,
             $workerId
         ])->exec();
+    }
+
+    /**
+     * @throws Exception
+     */
+    public function getQueuedJobs(int $workerId) : array
+    {
+        return $this->db->query("SELECT * FROM job_queue WHERE worker_id = ?", [$workerId])
+            ->asObj()
+            ->exec();
     }
 
 }

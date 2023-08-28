@@ -270,7 +270,7 @@ class App
         return $this->privateDir;
     }
 
-    public function getConfig() 
+    public function getConfig() : object
     {
         return $this->config;
     }

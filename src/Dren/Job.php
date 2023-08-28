@@ -3,7 +3,7 @@
 namespace Dren;
 
 use Dren\Jobs\JobExecutionTypeInterface;
-use Dren\Model\DAOs\JobDAO;
+use Dren\DAOs\JobDAO;
 use Exception;
 
 abstract class Job implements JobExecutionTypeInterface
@@ -14,6 +14,11 @@ abstract class Job implements JobExecutionTypeInterface
     protected bool $trackExecution;
     private JobDAO $jobDao;
     private int $queueWorkers;
+
+    private string $jobName;
+    private ?string $jobId;
+
+
     function __construct(mixed $data = null)
     {
         $this->data = !$data ? null : $data;
@@ -22,11 +27,36 @@ abstract class Job implements JobExecutionTypeInterface
         $this->trackExecution = true;
         $this->jobDao = new JobDAO();
         $this->queueWorkers = App::get()->getConfig()->queue->queue_workers;
+        $this->jobName = get_class($this);
+        $this->jobId = null;
     }
 
     abstract public function preCondition() : bool;
 
 	abstract public function logic() : void;
+
+    public function getData() : mixed
+    {
+        return $this->data;
+    }
+
+    public function getJobName() : string
+    {
+        return $this->jobName;
+    }
+
+    public function getJobId() : string
+    {
+        if($this->jobId !== null)
+            return $this->jobId;
+
+        $this->jobId = str_replace('\\', '_', $this->jobName);
+
+        if($this->concurrentExecutionAllowed)
+            $this->jobId = $this->jobId . '_' . time() . random_int(0, 9999);
+
+        return $this->jobId;
+    }
 
     public function isConcurrent() : bool
     {
@@ -41,11 +71,6 @@ abstract class Job implements JobExecutionTypeInterface
     public function shouldTrackExecution() : bool
     {
         return $this->trackExecution;
-    }
-
-    public function generateFilenameFromObject() : string
-    {
-        return str_replace('\\', '_', get_class($this));
     }
 
     private function getClassNameOnly() : string
