@@ -1,6 +1,6 @@
 <?php
 
-namespace Dren\Model\DAOs;
+namespace Dren\DAOs;
 
 use Dren\DAO;
 use Exception;

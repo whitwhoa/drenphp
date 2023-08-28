@@ -7,7 +7,7 @@ use Dren\FileLockableDataStore;
 use Dren\Job;
 use Dren\JobExecutor;
 use Dren\LockableDataStore;
-use Dren\Model\DAOs\JobDAO;
+use Dren\DAOs\JobDAO;
 use Exception;
 
 abstract class JobScheduler extends Job
