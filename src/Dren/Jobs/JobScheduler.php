@@ -35,6 +35,7 @@ abstract class JobScheduler extends Job
     private string $privateDir;
     private LockableDataStore $lockableDataStore;
     private JobDAO $jobDao;
+    private object $appConfig;
 
     function __construct(mixed $data = null)
     {
@@ -49,6 +50,8 @@ abstract class JobScheduler extends Job
         $this->jobDao = new JobDAO();
 
         $this->trackExecution = false;
+
+        $this->appConfig = App::get()->getConfig();
     }
 
     public function preCondition(): bool
@@ -62,6 +65,9 @@ abstract class JobScheduler extends Job
     public function logic(): void
     {
         $this->cleanInterrupted();
+
+        if($this->appConfig->queue->use_worker_queue)
+            $this->addJob('* * * * *', 'WorkerProcessManager');
 
         $this->schedule();
 

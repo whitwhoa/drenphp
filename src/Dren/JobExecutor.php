@@ -142,7 +142,7 @@ class JobExecutor
                 $this->job->getJobName(),
                 date('Y-m-d H:i:s'),
                 'RUNNING',
-                json_encode($this->job->getData())
+                ($this->job->getData() ? json_encode($this->job->getData()) : null)
             );
             $this->mutex->overwriteContents($this->executionId);
         }
