@@ -1,4 +1,5 @@
 <?php
+declare(strict_types=1);
 
 namespace Dren;
 
@@ -144,7 +145,7 @@ class JobExecutor
                 'RUNNING',
                 ($this->job->getData() ? json_encode($this->job->getData()) : null)
             );
-            $this->mutex->overwriteContents($this->executionId);
+            $this->mutex->overwriteContents((string)$this->executionId);
         }
         else
         {

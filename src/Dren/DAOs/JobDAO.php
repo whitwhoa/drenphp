@@ -1,4 +1,5 @@
 <?php
+declare(strict_types=1);
 
 namespace Dren\DAOs;
 
@@ -26,7 +27,7 @@ class JobDAO extends DAO
     /**
      *
      *
-     * @param string $processId
+     * @param int $processId
      * @param string $name
      * @param string $startTime
      * @param string $status
@@ -34,7 +35,7 @@ class JobDAO extends DAO
      * @return int|null
      * @throws Exception
      */
-    public function createJobExecution(string $processId, string $name, string $startTime, string $status, ?string $data = NULL) : ?int
+    public function createJobExecution(int $processId, string $name, string $startTime, string $status, ?string $data = NULL) : ?int
     {
         return $this->db->query("INSERT INTO job_executions(process_id, name, start_time, status, data) VALUES(?,?,?,?,?)", [
             $processId,
@@ -46,6 +47,10 @@ class JobDAO extends DAO
     }
 
     /**
+     * @param string $name
+     * @param string $data
+     * @param int $workerId
+     * @return int|null
      * @throws Exception
      */
     public function createJobQueue(string $name, string $data, int $workerId) : ?int
@@ -58,6 +63,14 @@ class JobDAO extends DAO
     }
 
     /**
+     * @param int $workerId
+     * @return \stdClass[] where {
+     *      int $id,
+     *      string $name,
+     *      string $data,
+     *      int $worker_id,
+     *      string $added_at
+     * }
      * @throws Exception
      */
     public function getQueuedJobs(int $workerId) : array
@@ -67,6 +80,11 @@ class JobDAO extends DAO
             ->exec();
     }
 
+    /**
+     * @param int $recordId
+     * @return int|null
+     * @throws Exception
+     */
     public function deleteJobQueue(int $recordId) : ?int
     {
         return $this->db->query("DELETE FROM job_queue WHERE id = ?", [$recordId])->exec();

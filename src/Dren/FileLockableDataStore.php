@@ -1,4 +1,5 @@
 <?php
+declare(strict_types=1);
 
 namespace Dren;
 
@@ -247,17 +248,15 @@ class FileLockableDataStore extends LockableDataStore
         return true;
     }
 
+    /**
+     * @return array<string>
+     */
     public function getAllElementsInContainer(): array
     {
         if(!is_dir($this->containerName))
             return [];
 
-        // Scan the directory for files
         $files = scandir($this->containerName);
-
-        // Filter out the current and parent directory
-        $files = array_diff($files, ['.', '..', '.gitkeep']);
-
-        return $files;
+        return array_diff($files, ['.', '..', '.gitkeep']);
     }
 }

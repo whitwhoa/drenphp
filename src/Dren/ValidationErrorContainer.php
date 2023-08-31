@@ -1,23 +1,34 @@
 <?php
+declare(strict_types=1);
 
 namespace Dren;
 
 class ValidationErrorContainer
 {
+    /** @var array<string, array<string>> */
+    private array $errors;
+
+    /**
+     * @param array<string, array<string>> $errors
+     */
     public function __construct(array $errors = [])
     {
+        $this->errors = [];
         $this->import($errors);
     }
 
-    private array $errors = [];
-
-    // have to have import and export methods so we can get and set raw arrays of errors
-    // for serialization purposes (storing errors in flash data)
+    /**
+     * @param array<string, array<string>> $e
+     * @return void
+     */
     public function import(array $e) : void
     {
         $this->errors = $e;
     }
 
+    /**
+     * @return array<string, array<string>>
+     */
     public function export() : array
     {
         return $this->errors;
@@ -47,6 +58,10 @@ class ValidationErrorContainer
         return $this->get($key)[0];
     }
 
+    /**
+     * @param string $key
+     * @return array<string>|array<array<string>>
+     */
     public function get(string $key) : array
     {
         if(!array_key_exists($key, $this->errors))
@@ -57,12 +72,17 @@ class ValidationErrorContainer
 
         $matches = [];
         foreach($this->errors as $k => $v)
-            if($this->_isFieldArrayPattern($key, $k))
+            if($this->isFieldArrayPattern($key, $k))
                 $matches[] = $this->errors[$k];
 
         return $matches;
     }
 
+    /**
+     * Group all error messages together in one big aggregate array
+     *
+     * @return array<string>
+     */
     public function all() : array
     {
         $returnArray = [];
@@ -76,7 +96,13 @@ class ValidationErrorContainer
     {
         return (count($this->get($key)) > 0);
     }
-    private function _isFieldArrayPattern($pattern, $input) : bool
+
+    /**
+     * @param string $pattern
+     * @param string $input
+     * @return bool
+     */
+    private function isFieldArrayPattern(string $pattern, string $input) : bool
     {
         // Escape the pattern, then replace '[*]' with regex to match any number value enclosed by '[]'
         $pattern = preg_replace('/\\\[\*\\\]/', '(\d+)', preg_quote($pattern, '/'));

@@ -1,4 +1,5 @@
 <?php
+declare(strict_types=1);
 
 namespace Dren;
 
@@ -6,16 +7,26 @@ use Exception;
 
 class UploadedFile
 {
-    private string $clientName = '';
-    private string $clientMime = '';
-    private string $tmpPath = '';
-    private string $errorMessage = '';
-    private int $size = 0;
-    private string $serverMime = '';
-    private array $allowableMimes = [];
-    private string $formName = '';
+    private string $clientName;
+    private string $clientMime;
+    private string $tmpPath;
+    private string $errorMessage;
+    private int $size;
+    private string $serverMime;
+    /** @var array<string, string> */
+    private array $allowableMimes;
+    private string $formName;
 
 
+    /**
+     * @param array<string, string> $am
+     * @param string $fn
+     * @param string $cn
+     * @param string $cm
+     * @param string $tp
+     * @param int $ec
+     * @param int $s
+     */
     public function __construct(array $am, string $fn, string $cn, string $cm, string $tp, int $ec, int $s)
     {
         $this->formName = $fn;
@@ -24,6 +35,8 @@ class UploadedFile
         $this->tmpPath = $tp;
         $this->size = $s;
         $this->allowableMimes = $am;
+        $this->errorMessage = '';
+        $this->serverMime = '';
 
         if($ec === UPLOAD_ERR_INI_SIZE)
             $this->errorMessage = 'UPLOAD_ERR_INI_SIZE';

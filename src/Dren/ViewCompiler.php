@@ -1,4 +1,5 @@
 <?php
+declare(strict_types=1);
 
 
 namespace Dren;
@@ -11,12 +12,15 @@ use RecursiveIteratorIterator;
 
 class ViewCompiler
 {
-    private array $views = [];
+    /** @var array<string, string> */
+    private array $views;
     private SessionManager $sessionManager;
 
 
     public function __construct(string $privateDir, SessionManager $sessionManager)
     {
+        $this->views = [];
+
         foreach (new RecursiveIteratorIterator(new RecursiveDirectoryIterator($privateDir . '/views')) as $file) 
         {
             if ($file->isDir())
@@ -45,7 +49,7 @@ class ViewCompiler
      *
      *
      * @param string $view
-     * @param array $data
+     * @param array<string, mixed> $data
      * @return string
      * @throws Exception
      */

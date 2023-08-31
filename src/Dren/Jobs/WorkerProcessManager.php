@@ -1,4 +1,5 @@
 <?php
+declare(strict_types=1);
 
 namespace Dren\Jobs;
 
@@ -110,7 +111,7 @@ class WorkerProcessManager extends Job
         $this->lockableDataStore->overwriteContentsUnsafe($this->dataStoreId, json_encode($data));
     }
 
-    private function isProcessRunning($pid) : bool
+    private function isProcessRunning(int $pid) : bool
     {
         return file_exists("/proc/$pid");
     }

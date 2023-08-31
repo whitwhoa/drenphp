@@ -1,4 +1,5 @@
 <?php
+declare(strict_types=1);
 
 namespace Dren;
 
@@ -12,10 +13,13 @@ class Route
     private bool $blocking;
     private ?string $uri;
     private ?string $uriRegex;
+    /** @var array<array{int, string}>  */
     private array $uriParamPlaceholders;
+    /** @var array<string, string> */
     private array $uriParams;
     private ?string $controller;
     private ?string $method;
+    /** @var array<string>  */
     private array $middleware;
     private ?string $formDataValidator;
 
@@ -67,6 +71,10 @@ class Route
         $this->method = $method;
     }
 
+    /**
+     * @param array<string> $middleware
+     * @return void
+     */
     public function setMiddleware(array $middleware): void
     {
         foreach($middleware as $m)
@@ -77,7 +85,7 @@ class Route
 
     public function setFormDataValidator(string $formDataValidator): void
     {
-        $this->formDataValidator = 'App\FormDataValidators\\' . $formDataValidator;
+        $this->formDataValidator = 'App\\FormDataValidators\\' . $formDataValidator;
     }
 
     /*
@@ -131,6 +139,9 @@ class Route
         return $this->uriRegex;
     }
 
+    /**
+     * @return array<array{int, string}>
+     */
     public function getUriParamPlaceholders(): array
     {
         return $this->uriParamPlaceholders;
@@ -146,6 +157,9 @@ class Route
         return $this->method;
     }
 
+    /**
+     * @return array<string>
+     */
     public function getMiddleware(): array
     {
         return $this->middleware;
@@ -156,6 +170,9 @@ class Route
         return $this->formDataValidator;
     }
 
+    /**
+     * @return array<string, string>
+     */
     public function getUriParams(): array
     {
         return $this->uriParams;

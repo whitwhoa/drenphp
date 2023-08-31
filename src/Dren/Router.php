@@ -1,4 +1,5 @@
 <?php
+declare(strict_types=1);
 
 namespace Dren;
 
@@ -6,14 +7,15 @@ use Dren\Exceptions\NotFound;
 
 class Router
 {
-    private static $instance = null;
+    private static ?Router $instance = null;
 
-    private static function init()
+    private static function init() : void
     {
         if (self::$instance == null)
             self::$instance = new Router();
     }
 
+    /** @var array<Route> */
     private array $routes;
 
     private ?int $activeRoute;
@@ -21,6 +23,7 @@ class Router
     private function __construct()
     {
         $this->routes = [];
+        $this->activeRoute = null;
     }
 
     public static function web() : Router
@@ -59,6 +62,9 @@ class Router
         return self::$instance;
     }
 
+    /**
+     * @throws NotFound
+     */
     public static function setActiveRoute(string $requestUri, string $requestMethod): void
     {
         self::init();
@@ -130,6 +136,10 @@ class Router
         return $this;
     }
 
+    /**
+     * @param array<string> $middleware
+     * @return $this
+     */
     public function middleware(array $middleware) : Router
     {
         $route = end($this->routes);

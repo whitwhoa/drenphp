@@ -1,11 +1,11 @@
 <?php
+declare(strict_types=1);
 
 
 namespace Dren;
 
 
-use Dren\MySQLCon;
-
+use Exception;
 
 
 /**
@@ -17,13 +17,20 @@ use Dren\MySQLCon;
 class MysqlConnectionManager
 {
 
-    private $config = null; // available connections
-    private $connections = [];
+    /** @var array<array{host: string, user: string, pass: string, db: string}> */
+    private array $config;
+
+    /** @var array<MySQLCon> */
+    private array $connections;
 
 
-    public function __construct($databaseConfig)
+    /**
+     * @param array<array{host: string, user: string, pass: string, db: string}> $databaseConfig
+     */
+    public function __construct(array $databaseConfig)
     {
         $this->config = $databaseConfig;
+        $this->connections = [];
     }
 
     /**
@@ -31,7 +38,7 @@ class MysqlConnectionManager
      *
      * @param string|null $dbName
      * @return MySQLCon
-     * @throws \Exception
+     * @throws Exception
      */
     public function get(string $dbName = null) : MySQLCon
     {
@@ -48,7 +55,7 @@ class MysqlConnectionManager
      *
      * @param string $db
      * @return MySQLCon
-     * @throws \Exception
+     * @throws Exception
      */
     private function genCon(string $db) : MySQLCon
     {
@@ -61,7 +68,7 @@ class MysqlConnectionManager
                 $connectionArray = [$con['host'], $con['user'], $con['pass'], $con['db']];
 
         if(count($connectionArray) == 0)
-            throw new \Exception('Given database name does not exist within configuration file');
+            throw new Exception('Given database name does not exist within configuration file');
 
         $con = new MySQLCon($connectionArray);
 

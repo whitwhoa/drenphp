@@ -1,4 +1,5 @@
 <?php
+declare(strict_types=1);
 
 namespace Dren;
 
@@ -9,19 +10,28 @@ class Request
     private string $ip;
     private string $method;
     private string $uri;
+
+    /** @var array<string, string>  */
     private array $cookies;
     private object $getData;
     private object $postData;
     private string $referrer;
 
-    private array $files = [];
+    /** @var array<UploadedFile>  */
+    private array $files;
 
     private ?Route $route;
 
-    private array $headers = [];
+    /** @var array<string, string>  */
+    private array $headers;
 
-    private array $allowableMimes = [];
+    /** @var array<string, string> */
+    private array $allowableMimes;
 
+    /**
+     * @param array<string, string> $am
+     * @param string $ipParamName
+     */
     public function __construct(array $am, string $ipParamName)
     {
         $this->allowableMimes = $am;
@@ -63,6 +73,7 @@ class Request
 
     private function setHeaders() : void
     {
+        $this->headers = [];
         foreach ($_SERVER as $key => $value)
         {
             if (str_starts_with($key, 'HTTP_'))
@@ -163,12 +174,14 @@ class Request
 
     private function setGetData() : void
     {
-        $this->getData = isset($_GET) ? (object)$_GET : NULL;
+        //$this->getData = isset($_GET) ? (object)$_GET : NULL;
+        $this->getData = (object)$_GET;
     }
 
     private function setPostData() : void
     {
-        $this->postData = isset($_POST) ? (object)$_POST : NULL;
+        //$this->postData = isset($_POST) ? (object)$_POST : NULL;
+        $this->postData = (object)$_POST;
     }
 
     private function setIp(string $ipParamName) : void
@@ -178,6 +191,8 @@ class Request
 
     private function setFiles() : void
     {
+        $this->files = [];
+
         if(count($_FILES) == 0)
             return;
 
@@ -232,7 +247,7 @@ class Request
      * Returns an array of UploadedFiles that share the same formName value, or an empty array
      *
      * @param string $name
-     * @return array
+     * @return array<UploadedFile>
      */
     public function groupedFiles(string $name) : array
     {
@@ -251,7 +266,7 @@ class Request
      *
      * Used within request validator to put files in format that it can use for running validation methods
      *
-     * @return array
+     * @return array<string, UploadedFile|array<UploadedFile>>
      */
     public function allFilesByFormName() : array
     {

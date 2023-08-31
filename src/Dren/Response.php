@@ -1,9 +1,9 @@
 <?php
+declare(strict_types=1);
 
 
 namespace Dren;
 
-use Dren\App;
 use Exception;
 
 class Response
@@ -42,6 +42,10 @@ class Response
         return $this;
     }
 
+    /**
+     * @param array<mixed>|string $body
+     * @return $this
+     */
     public function json(array|string $body) : Response
     {
         if(is_array($body))

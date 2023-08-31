@@ -1,4 +1,5 @@
 <?php
+declare(strict_types=1);
 
 namespace Dren\DAOs;
 
@@ -9,6 +10,7 @@ class AccountDAO extends DAO
 {
     /**
      * @throws Exception
+     * @param array<string> $roles
      */
     public function createNewAccount(string $username, string $password, string $ip,
                                      array $roles = [], ?callable $callbackFunction = null) : int
@@ -29,7 +31,7 @@ class AccountDAO extends DAO
             if(count($roles) > 0)
             {
                 // get the ids of each provided role
-                $bindString = $this->db->generate_bind_string_for_array($roles);
+                $bindString = $this->db->generateBindStringForArray($roles);
                 $q2 = <<<EOT
                     SELECT JSON_ARRAYAGG(roles.id) AS ids FROM roles WHERE roles.role IN ($bindString)
                 EOT;
@@ -158,6 +160,11 @@ class AccountDAO extends DAO
         }
     }
 
+    /**
+     * @param int $accountId
+     * @return array<string>
+     * @throws Exception
+     */
     public function getRoles(int $accountId): array
     {
         $q = <<<EOT
@@ -181,6 +188,14 @@ class AccountDAO extends DAO
         return $roles;
     }
 
+    /**
+     * @return \stdClass[] where {
+     *      int $id,
+     *      string $username
+     * }
+     *
+     * @throws Exception
+     */
     public function getAllAccounts() : array
     {
         return $this->db

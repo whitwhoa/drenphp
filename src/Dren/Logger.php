@@ -1,4 +1,5 @@
 <?php
+declare(strict_types=1);
 
 namespace Dren;
 
@@ -8,6 +9,7 @@ namespace Dren;
  */
 class Logger
 {
+    /** @var array<string> */
     private static array $buffer = [];
     private static string $logFilePath;
     private function __construct() {}

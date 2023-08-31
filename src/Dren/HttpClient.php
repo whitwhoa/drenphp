@@ -1,45 +1,61 @@
 <?php
+declare(strict_types=1);
 
 namespace Dren;
 
 use Exception;
 
-class HttpClient {
+class HttpClient
+{
+    private string $url;
+    private bool $verifySSL;
+    private string $referer; // misspelled on purpose, if you know...you know
+    private string $browserAgent;
+    private string $cookiePath;
+    private string $postType; // HTTP or JSON
+    /** @var array<string, mixed>  */
+    private array $postVars;
+    private string $serverResponse;
+    private ?int $httpStatus;
+    private string $httpProxy;
+    private string $headerOutput;
+    private bool $acceptCookies;
 
-    private string $_url = '';
-    private bool $_verify_ssl = false;
-    private string $_referer = ''; // misspelled on purpose, if you know...you know
-    private string $_browser_agent = '';
-    private string $_cookie_path = '';
-    private string $_post_type = 'HTTP'; // HTTP or JSON
-    private array $_post_vars = [];
-    private string $_server_response = '';
-    private string $_http_status = '';
-    private string $_http_proxy = '';
-    private string $_header_output = '';
-
-    private bool $_accept_cookies = false;
-
-    public function __construct(string $dataPath)
+    public function __construct(string $cookieStoragePath)
     {
-        $this->_cookie_path = $dataPath;
+        $this->url = '';
+        $this->verifySSL = false;
+        $this->referer = '';
+        $this->browserAgent = '';
+        $this->cookiePath = $cookieStoragePath;
+        $this->postType = 'HTTP';
+        $this->postVars = [];
+        $this->serverResponse = '';
+        $this->httpStatus = null;
+        $this->httpProxy = '';
+        $this->headerOutput = '';
+        $this->acceptCookies = false;
+
     }
 
     /* PUBLIC SETTERS
     --------------------------------------------------------------------------*/
-    public function setUrl($url) : HttpClient
+    /**
+     * @throws Exception
+     */
+    public function setUrl(string $url) : HttpClient
     {
         if(!filter_var($url, FILTER_VALIDATE_URL))
             throw new Exception('cURL error: The given url is not valid');
 
-        $this->_url = $url;
+        $this->url = $url;
 
         return $this;
     }
 
     public function setAcceptCookies(bool $b) : HttpClient
     {
-        $this->_accept_cookies = $b;
+        $this->acceptCookies = $b;
 
         return $this;
     }
@@ -47,54 +63,57 @@ class HttpClient {
     public function setVerifySSL(bool $verify) : HttpClient
     {
         if($verify)
-            $this->_verify_ssl = true;
+            $this->verifySSL = true;
         else
-            $this->_verify_ssl = false;
+            $this->verifySSL = false;
 
         return $this;
     }
 
+    /**
+     * @throws Exception
+     */
     public function setReferer(string $url) : HttpClient
     {
         if(!filter_var($url, FILTER_VALIDATE_URL))
             throw new Exception('cURL error: The given referer url is not valid');
 
-        $this->_referer = $url;
+        $this->referer = $url;
 
         return $this;
     }
 
-    public function setBrowserAgent(string $browser_agent) : HttpClient
+    public function setBrowserAgent(string $ba) : HttpClient
     {
-        $this->_browser_agent = $browser_agent;
+        $this->browserAgent = $ba;
 
         return $this;
     }
 
     public function setCookiePath(string $path) : HttpClient
     {
-        $this->_cookie_path = $path;
+        $this->cookiePath = $path;
 
         return $this;
     }
 
     public function setPostVar(mixed $name, mixed $value) : HttpClient
     {
-        $this->_post_vars[$name] = $value;
+        $this->postVars[$name] = $value;
 
         return $this;
     }
 
     public function setPostType(string $type) : HttpClient
     {
-        $this->_post_type = $type;
+        $this->postType = $type;
 
         return $this;
     }
 
-    public function setHttpProxy(string $proxy_address) : HttpClient
+    public function setHttpProxy(string $pa) : HttpClient
     {
-        $this->_http_proxy = $proxy_address;
+        $this->httpProxy = $pa;
 
         return $this;
     }
@@ -104,95 +123,99 @@ class HttpClient {
     --------------------------------------------------------------------------*/
     public function getUrl() : string
     {
-        return $this->_url;
+        return $this->url;
     }
 
     public function getVerifySSL(): bool
     {
-        return $this->_verify_ssl;
+        return $this->verifySSL;
     }
 
     public function getReferer(): string
     {
-        return $this->_referer;
+        return $this->referer;
     }
 
     public function getBrowserAgent(): string
     {
-        return $this->_browser_agent;
+        return $this->browserAgent;
     }
 
     public function getCookiePath(): string
     {
-        return $this->_cookie_path;
+        return $this->cookiePath;
     }
 
+    /** @return array<string, mixed> */
     public function getPostVars(): array
     {
-        return $this->_post_vars;
+        return $this->postVars;
     }
 
-    public function getHttpStatus(): string
+    public function getHttpStatus(): ?int
     {
-        return $this->_http_status;
+        return $this->httpStatus;
     }
 
     public function getResponse(): string
     {
-        return $this->_server_response;
+        return $this->serverResponse;
     }
 
     public function getPostType(): string
     {
-        return $this->_post_type;
+        return $this->postType;
     }
 
     public function getProxyAddress(): string
     {
-        return $this->_http_proxy;
+        return $this->httpProxy;
     }
 
     public function getHeaderOutput(): string
     {
-        return $this->_header_output;
+        return $this->headerOutput;
     }
 
     /* PUBLIC METHODS (NOT GETTERS OR SETTERS)
     --------------------------------------------------------------------------*/
+    /**
+     * @throws Exception
+     */
     public function send() : HttpClient
     {
         $curl = curl_init();
 
-        curl_setopt($curl, CURLOPT_URL, $this->_url);
-        curl_setopt($curl, CURLOPT_SSL_VERIFYPEER, $this->_verify_ssl);
+        curl_setopt($curl, CURLOPT_URL, $this->url);
+        curl_setopt($curl, CURLOPT_SSL_VERIFYPEER, $this->verifySSL);
         curl_setopt($curl, CURLOPT_FOLLOWLOCATION, true);
         curl_setopt($curl, CURLOPT_RETURNTRANSFER, true);
         curl_setopt($curl, CURLINFO_HEADER_OUT, true);
 
-        if($this->_referer != '')
-            curl_setopt($curl, CURLOPT_REFERER, $this->_referer);
-        if($this->_browser_agent != '')
-            curl_setopt($curl, CURLOPT_USERAGENT, $this->_browser_agent);
-        if($this->_accept_cookies && $this->_cookie_path != '')
+        if($this->referer != '')
+            curl_setopt($curl, CURLOPT_REFERER, $this->referer);
+        if($this->browserAgent != '')
+            curl_setopt($curl, CURLOPT_USERAGENT, $this->browserAgent);
+        if($this->acceptCookies && $this->cookiePath != '')
         {
-            curl_setopt($curl, CURLOPT_COOKIEFILE, $this->_cookie_path);
-            curl_setopt($curl, CURLOPT_COOKIEJAR, $this->_cookie_path);
+            curl_setopt($curl, CURLOPT_COOKIEFILE, $this->cookiePath);
+            curl_setopt($curl, CURLOPT_COOKIEJAR, $this->cookiePath);
         }
-        if(!empty($this->_post_vars))
+        if(!empty($this->postVars))
         {
-            if($this->_post_type === 'HTTP')
+            if($this->postType === 'HTTP')
             {
                 curl_setopt($curl, CURLOPT_POST, 1);
-                curl_setopt($curl, CURLOPT_POSTFIELDS, $this->_post_vars);
+                curl_setopt($curl, CURLOPT_POSTFIELDS, $this->postVars);
             }
-            else if($this->_post_type === 'JSON')
+            else if($this->postType === 'JSON')
             {
-                $post_data_as_json = json_encode($this->_post_vars);
+                $postDataAsJson = json_encode($this->postVars);
                 curl_setopt($curl, CURLOPT_CUSTOMREQUEST, "POST");
-                curl_setopt($curl, CURLOPT_POSTFIELDS, $post_data_as_json);
+                curl_setopt($curl, CURLOPT_POSTFIELDS, $postDataAsJson);
                 curl_setopt($curl, CURLOPT_HTTPHEADER, [
                     'Content-Type: application/json',
-                    'Content-Length: ' . strlen($post_data_as_json)
+                    'Content-Length: ' . strlen($postDataAsJson)
                 ]);
             }
             else
@@ -201,16 +224,16 @@ class HttpClient {
             }
         }
 
-        if($this->_http_proxy !== '')
-            curl_setopt($curl, CURLOPT_PROXY, $this->_http_proxy);
+        if($this->httpProxy !== '')
+            curl_setopt($curl, CURLOPT_PROXY, $this->httpProxy);
 
-        $this->_server_response = curl_exec($curl);
+        $this->serverResponse = curl_exec($curl);
 
         if(curl_error($curl))
             throw new Exception('cURL error: ' . curl_error($curl));
 
-        $this->_http_status = curl_getinfo($curl, CURLINFO_HTTP_CODE);
-        $this->_header_output = curl_getinfo($curl, CURLINFO_HEADER_OUT);
+        $this->httpStatus = curl_getinfo($curl, CURLINFO_HTTP_CODE);
+        $this->headerOutput = curl_getinfo($curl, CURLINFO_HEADER_OUT);
 
         curl_close($curl);
 

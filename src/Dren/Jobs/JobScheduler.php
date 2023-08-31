@@ -1,4 +1,5 @@
 <?php
+declare(strict_types=1);
 
 namespace Dren\Jobs;
 
@@ -31,6 +32,15 @@ abstract class JobScheduler extends Job
      *      ] // an aggregate job execution, each subsequent job depends on the successful execution of the previous
      * ]
      */
+    /**
+     * @var array<array{
+     *     0: string,
+     *     1: array<array{
+     *         0: string,
+     *         1: array<mixed>
+     *     }>
+     * }>
+     */
     private array $scheduleData;
     private string $privateDir;
     private LockableDataStore $lockableDataStore;
@@ -46,6 +56,7 @@ abstract class JobScheduler extends Job
 
         if(App::get()->getConfig()->jobs_lockable_datastore_type === 'file')
             $this->lockableDataStore = new FileLockableDataStore(App::get()->getPrivateDir() . '/storage/system/locks/jobs');
+
 
         $this->jobDao = new JobDAO();
 
@@ -96,7 +107,7 @@ abstract class JobScheduler extends Job
      *
      * jobClassName, Json encode-able array, unix crontab, data is not optional for aggregates, pass empty if no data
      * @param string $unixCronTab
-     * @param array<array{string, array}> $aggregateJob
+     * @param array<array{string, array{string, array<mixed>}}> $aggregateJob
      * @return void
      */
     public function addAggregateJob(string $unixCronTab, array $aggregateJob) : void
@@ -155,7 +166,7 @@ abstract class JobScheduler extends Job
      * command line arguments have a max size, often 2mb. In order to work around this, we could add functionality
      * to check if the size is reaching that limit, and if so, use temp files and xargs
      *
-     * @param array $jobs
+     * @param array<array{string, array<mixed>}> $jobs
      * @return void
      */
     private function exec(array $jobs) : void

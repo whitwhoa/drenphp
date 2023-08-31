@@ -1,4 +1,5 @@
 <?php
+declare(strict_types=1);
 
 namespace Dren;
 
@@ -10,17 +11,22 @@ abstract class FormDataValidator
     protected Request $request;
     protected SessionManager $sessionManager;
 
-    protected array $rules = [];
+    /** @var array<string, string|string[]|callable> */
+    protected array $rules;
 
-    private array $requestData = [];
+    /** @var array<string, mixed> */
+    private array $requestData;
 
-    protected array $messages = [];
+    /** @var array<string, string> */
+    protected array $messages;
 
     private ValidationErrorContainer $errors;
 
-    private array $expandedFields = [];
+    /** @var array<array{string, mixed, int}> */
+    private array $expandedFields;
 
-    private array $methodChains = [];
+    /** @var array<string|string[]|callable> */
+    private array $methodChains;
 
     private string $valueNotPresentToken;
 
@@ -28,15 +34,16 @@ abstract class FormDataValidator
     {
         $this->request = $request;
         $this->sessionManager = $sessionManager;
-
+        $this->rules = [];
         $this->requestData = array_merge(
-            ($request->getGetData() ? (array)$request->getGetData() : []),
-            ($request->getPostData() ? (array)$request->getPostData() : []),
-            ($request->allFilesByFormName())
+            (array)$request->getGetData(),
+            (array)$request->getPostData(),
+            $request->allFilesByFormName()
         );
-
+        $this->messages = [];
         $this->errors = new ValidationErrorContainer();
-
+        $this->expandedFields = [];
+        $this->methodChains = [];
         $this->valueNotPresentToken = md5(mt_rand(1, 1000) . time());
     }
 
@@ -184,6 +191,12 @@ abstract class FormDataValidator
 
                     if($this->errors->count() > $preMethodCallErrorsCount)
                     {
+
+                        /**
+                         * Callback obtains variable by reference and can manipulate its value, we need to tell
+                         * phpstan to ignore this line because the value is not always false
+                         * @phpstan-ignore-next-line
+                         */
                         if($fenceUp)
                             break 2;
 
@@ -243,16 +256,15 @@ abstract class FormDataValidator
         }
     }
 
-    private function _expandFieldsRecursiveLoop($data, &$keys, &$index, $path) : void
+    /**
+     * @param mixed $data
+     * @param array<string> $keys
+     * @param int $index
+     * @param array<string> $path
+     * @return void
+     */
+    private function _expandFieldsRecursiveLoop(mixed $data, array &$keys, int &$index, array $path) : void
     {
-//        echo '-------------------------------<br/>';
-//        echo '<pre>';
-//        echo '$data: ' . var_export($data, true) . '<br/>';
-//        echo '$keys: ' . var_export($keys, true) . '<br/>';
-//        echo '$index: ' . var_export($index, true) . '<br/>';
-//        echo '$path: ' . var_export($path, true) . '<br/>';
-//        echo '</pre>';
-
         if ($index >= count($keys))
             return;
 
@@ -262,7 +274,8 @@ abstract class FormDataValidator
         if ($currentKey === '*')
         {
             $itemIndex = 0;
-            if($data && \is_array($data) && count($data) > 0)
+
+            if($data && \is_array($data))
             {
                 foreach ($data as $item)
                 {
@@ -289,7 +302,14 @@ abstract class FormDataValidator
         array_pop($path);
     }
 
-    private function _expandFieldsProcessItem($item, &$keys, &$index, $path) : void
+    /**
+     * @param mixed $item
+     * @param array<string> $keys
+     * @param int $index
+     * @param array<string> $path
+     * @return void
+     */
+    private function _expandFieldsProcessItem(mixed $item, array &$keys, int &$index, array $path) : void
     {
         if ($index < count($keys) - 1)
         {
@@ -309,7 +329,7 @@ abstract class FormDataValidator
     }
 
 
-    private function _setErrorMessage($method, $field, $defaultMsg) : void
+    private function _setErrorMessage(string $method, string $field, string $defaultMsg) : void
     {
         $explodedField = explode('.', $field);
 
@@ -351,12 +371,11 @@ abstract class FormDataValidator
      * $input[0 => $fieldName, 1 => $value, 2 => (optional...), 3 => (optional...etc)]
      ******************************************************************************/
 
+    /**
+     * @param mixed[] $params
+     */
     private function required(array $params) : void
     {
-//        echo '<pre>';
-//        echo var_export($params, true);
-//        echo '</pre>';
-
         // if a form element is listed in $this->rules, then the data that is being validated will always contain
         // an element of that name. If an element with that name was not provided with the form submission, it's value
         // will be null
@@ -386,6 +405,9 @@ abstract class FormDataValidator
         $this->_setErrorMessage('required', $params[0], $params[0] . ' is required');
     }
 
+    /**
+     * @param mixed[] $params
+     */
     private function numeric(array $params) : void
     {
         if(is_numeric($params[1]))
@@ -394,6 +416,9 @@ abstract class FormDataValidator
         $this->_setErrorMessage('numeric', $params[0], $params[0] . ' must be numeric');
     }
 
+    /**
+     * @param mixed[] $params
+     */
     private function min_char(array $params) : void
     {
         $valString = (string)$params[1];
@@ -403,6 +428,9 @@ abstract class FormDataValidator
         $this->_setErrorMessage('min_char', $params[0], $params[0] . ' must be at least ' . $params[2] . ' characters');
     }
 
+    /**
+     * @param mixed[] $params
+     */
     private function max_char(array $params) : void
     {
         $valString = (string)$params[1];
@@ -412,6 +440,9 @@ abstract class FormDataValidator
         $this->_setErrorMessage('max_char', $params[0], $params[0] . ' must be less than or equal to ' . $params[2] . ' characters');
     }
 
+    /**
+     * @param mixed[] $params
+     */
     private function email(array $params) : void
     {
         if(filter_var($params[1], FILTER_VALIDATE_EMAIL) !== false)
@@ -420,6 +451,9 @@ abstract class FormDataValidator
         $this->_setErrorMessage('email', $params[0], $params[0] . ' must be an email address');
     }
 
+    /**
+     * @param mixed[] $params
+     */
     private function same(array $params) : void
     {
         if(key_exists($params[2], $this->requestData) && $this->requestData[$params[2]] == $params[1])
@@ -432,6 +466,11 @@ abstract class FormDataValidator
     // Some of these queries might look like sql injection vulnerabilities at first glance, however, note where user input
     // is handled, no user input is ever concatenated with the query string, only values provided by the application code
     // itself, user input is still always parameterized
+
+    /**
+     * @param mixed[] $params
+     * @throws \Exception
+     */
     private function unique(array $params) : void
     {
         if(!App::get()->getDb()->query("SELECT * FROM " . $params[2] . " WHERE " . $params[3] . " = ?", [$params[1]])->singleAsObj()->exec())
@@ -440,6 +479,9 @@ abstract class FormDataValidator
         $this->_setErrorMessage('unique', $params[0], $params[0] . ' must be unique');
     }
 
+    /**
+     * @param mixed[] $params
+     */
     private function is_array(array $params) : void
     {
         if(\is_array($params[1]))
@@ -448,6 +490,9 @@ abstract class FormDataValidator
         $this->_setErrorMessage('is_array', $params[0], $params[0] . ' must be an array');
     }
 
+    /**
+     * @param mixed[] $params
+     */
     private function min_array_elements(array $params) : void
     {
         if(count($params[1]) >= $params[2])
@@ -456,6 +501,9 @@ abstract class FormDataValidator
         $this->_setErrorMessage('min_array_elements', $params[0], $params[0] . ' must contain at least ' . $params[2] . ' elements');
     }
 
+    /**
+     * @param mixed[] $params
+     */
     private function max_array_elements(array $params) : void
     {
         if(count($params[1]) <= $params[2])
@@ -464,6 +512,9 @@ abstract class FormDataValidator
         $this->_setErrorMessage('max_array_elements', $params[0], $params[0] . ' must contain at no more than ' . $params[2] . ' elements');
     }
 
+    /**
+     * @param mixed[] $params
+     */
     private function is_file(array $params) : void
     {
         if(is_object($params[1]) && get_class($params[1]) === 'Dren\UploadedFile' && !$params[1]->hasError())
@@ -472,6 +523,9 @@ abstract class FormDataValidator
         $this->_setErrorMessage('is_file', $params[0], $params[0] . ' must be a valid file');
     }
 
+    /**
+     * @param mixed[] $params
+     */
     private function max_file_size(array $params) : void
     {
         $uploadedFileSizeInKB = $params[1]->getSize() * 0.001;
@@ -483,6 +537,9 @@ abstract class FormDataValidator
         $this->_setErrorMessage('max_file_size', $params[0], $params[0] . ' must be less than or equal to the following size: ' . $params[2] . 'kb');
     }
 
+    /**
+     * @param mixed[] $params
+     */
     private function mimetypes(array $params) : void
     {
         // if we've made it to this function, we already know the file is of an overall allowable mimetype (is of one
@@ -498,6 +555,9 @@ abstract class FormDataValidator
         $this->_setErrorMessage('mimetypes', $params[0], $params[0] . ' must be one of the following file types: ' . implode(',', $allowableMimesForThisFile));
     }
 
+    /**
+     * @param mixed[] $params
+     */
     private function in(array $params) : void
     {
         $allowableValues = [];

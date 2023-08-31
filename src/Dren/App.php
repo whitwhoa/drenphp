@@ -1,4 +1,5 @@
 <?php
+declare(strict_types=1);
 
 namespace Dren;
 
@@ -11,7 +12,7 @@ use PDOException;
 
 class App
 {
-    private static $instance = null;
+    private static ?App $instance = null;
     private string $privateDir;
     private object $config;
     private SecurityUtility $securityUtility;
@@ -41,9 +42,9 @@ class App
     /**
      * @throws Exception
      */
-    public static function initCli(string $privateDir): ?App
+    public static function initCli(string $privateDir) : ?App
     {
-        if (self::$instance == null)
+        if (self::$instance === null)
             self::$instance = new App($privateDir, '/storage/system/logs/job.log');
 
         return self::$instance;
@@ -52,9 +53,9 @@ class App
     /**
      * @throws Exception
      */
-    public static function get()
+    public static function get() : App
     {
-        if(self::$instance == null)
+        if(self::$instance === null)
             throw new \Exception('Attempting to get App instance before it has been initialized');
 
         return self::$instance;
@@ -125,7 +126,7 @@ class App
                     {
                         $this->ridLock = new FileLockableDataStore($this->privateDir . '/storage/system/locks/rid');
                         $this->ridLock->openLock($this->rememberIdManager->getRememberId());
-                        $this->ridLock->overwriteContents(time());
+                        $this->ridLock->overwriteContents((string)time());
                     }
                     // TODO: add additional blocks for additional LockableDataStores
 
@@ -157,7 +158,7 @@ class App
                 {
                     $this->ipLock = new FileLockableDataStore($this->privateDir . '/storage/system/locks/ip');
                     $this->ipLock->openLock($this->request->getIp());
-                    $this->ipLock->overwriteContents(time());
+                    $this->ipLock->overwriteContents((string)time());
 
                     $this->sessionManager->startNewSession();
                 }
@@ -278,7 +279,7 @@ class App
     /**
      * @throws Exception
      */
-    public function getDb($dbName = null) : MySQLCon
+    public function getDb(?string $dbName = null) : MySQLCon
     {
         return $this->dbConMan->get($dbName);
     }

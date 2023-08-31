@@ -1,4 +1,5 @@
 <?php
+declare(strict_types=1);
 
 /**
  * Accepts a string value
@@ -51,10 +52,10 @@ function simpleTimeFormat(string $date) : string
 }
 
 /**
- * Echo the given $var to screen and end program execution
- * $var can be of any type
+ * @param mixed $var
+ * @return void
  */
-function dad($var) : void
+function dad(mixed $var) : void
 {
     echo '<pre>';
     echo var_export($var, true);
@@ -86,9 +87,9 @@ function uuid_create_v4() : string
  * @param float $lng1
  * @param float $lat2
  * @param float $lng2
- * @return int
+ * @return float
  */
-function get_distance(float $lat1, float $lng1, float $lat2, float $lng2) : int
+function get_distance(float $lat1, float $lng1, float $lat2, float $lng2) : float
 {
     return round(3959 * acos(cos(deg2rad($lat1)) * cos(deg2rad($lat2)) *
             cos(deg2rad($lng2) - deg2rad($lng1)) + sin(deg2rad($lat1)) *
@@ -98,8 +99,8 @@ function get_distance(float $lat1, float $lng1, float $lat2, float $lng2) : int
 /**
  * Determine if the two arrays contain the same data
  *
- * @param array $a1
- * @param array $a2
+ * @param array<mixed> $a1
+ * @param array<mixed> $a2
  * @return bool
  */
 function arrays_are_equal(array $a1, array $a2) : bool
@@ -161,7 +162,11 @@ function end_section() : string
     return ob_get_clean();
 }
 
-function echo_safe($val) : void
+/**
+ * @param mixed $val
+ * @return void
+ */
+function echo_safe(mixed $val) : void
 {
     echo htmlspecialchars($val);
 }
@@ -170,7 +175,7 @@ function echo_safe($val) : void
  * Return an array of all states where keys are 2 letter
  * abbreviations and values are whole names
  *
- * @return array
+ * @return array<string, string>
  */
 function get_states() : array
 {

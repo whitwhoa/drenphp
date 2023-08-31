@@ -1,4 +1,5 @@
 <?php
+declare(strict_types=1);
 
 namespace Dren;
 
@@ -56,7 +57,7 @@ abstract class LockableDataStore
     /**
      * Read contents of locked data store resource and return as string
      *
-     * @return mixed
+     * @return string
      */
     abstract public function getContents() : string;
 
@@ -133,11 +134,18 @@ abstract class LockableDataStore
      */
     abstract public function deleteUnsafe() : void;
 
+    /**
+     * Delete the datastore
+     *
+     * @param string $id
+     * @return void
+     */
+    abstract public function deleteUnsafeById(string $id) : void;
 
     /**
      * Return an array of all elements that exist within the container housing this LockableDataStore
      *
-     * @return array
+     * @return array<string>
      */
     abstract public function getAllElementsInContainer() : array;
 

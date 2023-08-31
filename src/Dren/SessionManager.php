@@ -1,4 +1,5 @@
 <?php
+declare(strict_types=1);
 
 
 namespace Dren;
@@ -121,7 +122,7 @@ class SessionManager
         $this->session = json_decode($this->tmpLockableDataStore->getContents());
 
         // Has session token expired?
-        if(($this->session->issued_at + $this->session->valid_for) > time())
+        if(((int)$this->session->issued_at + (int)$this->session->valid_for) > time())
         {
             // Token still valid
 
@@ -150,7 +151,7 @@ class SessionManager
             // we want to set the token to null and treat this as a request which did not supply a token. If it is,
             // then we set this session_id equal to the updated_token value, release the lock on the expired token file
             // and obtain a lock for the updated_token
-            if(($this->session->reissued_at + $this->session->liminal_time) < time())
+            if(((int)$this->session->reissued_at + (int)$this->session->liminal_time) < time())
             {
                 // invalid
                 $this->session = null;
@@ -242,6 +243,9 @@ class SessionManager
     }
 
     /**
+     * @param int $accountId
+     * @param array<string> $roles
+     * @return void
      * @throws Exception
      */
     public function upgradeSession(int $accountId, array $roles) : void
@@ -285,7 +289,7 @@ class SessionManager
      * set token in response data, that needs to be handled by calling function if it is required
      *
      * @param int|null $accountId
-     * @param array $accountRoles
+     * @param array<string> $accountRoles
      * @return string
      */
     private function generateNewSession(?int $accountId = null, array $accountRoles = []) : string
@@ -383,7 +387,7 @@ class SessionManager
      * the same thing...
      *
      * @param int|null $accountId
-     * @param array $accountRoles
+     * @param array<string> $accountRoles
      * @return void
      * @throws Exception
      */
