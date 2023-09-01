@@ -165,6 +165,9 @@ class Route
         return $this->middleware;
     }
 
+    /**
+     * @return string|null
+     */
     public function getFormDataValidator(): ?string
     {
         return $this->formDataValidator;

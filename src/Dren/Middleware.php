@@ -3,7 +3,7 @@ declare(strict_types=1);
 
 namespace Dren;
 
-class Middleware
+abstract class Middleware
 {
     protected Request $request;
     protected SessionManager $sessionManager;
@@ -13,4 +13,7 @@ class Middleware
         $this->request = App::get()->getRequest();
         $this->sessionManager = App::get()->getSessionManager();
     }
+
+    abstract public function handle() : ?Response;
+
 }

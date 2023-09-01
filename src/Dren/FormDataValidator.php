@@ -3,7 +3,7 @@ declare(strict_types=1);
 
 namespace Dren;
 
-use stdClass;
+use _PHPStan_7a55b7f06\Nette\Neon\Exception;
 
 abstract class FormDataValidator
 {
@@ -11,7 +11,10 @@ abstract class FormDataValidator
     protected Request $request;
     protected SessionManager $sessionManager;
 
-    /** @var array<string, string|string[]|callable> */
+
+    /**
+     * @var array<string, string[]|string|callable[]>
+     */
     protected array $rules;
 
     /** @var array<string, mixed> */
@@ -25,7 +28,7 @@ abstract class FormDataValidator
     /** @var array<array{string, mixed, int}> */
     private array $expandedFields;
 
-    /** @var array<string|string[]|callable> */
+    /** @var array<int, string|array<string|callable>> */
     private array $methodChains;
 
     private string $valueNotPresentToken;
@@ -65,15 +68,15 @@ abstract class FormDataValidator
          * Default FormDataValidator rules
          ********************************************************************************************/
 
-        // prepend session verification rule (if you're submitting a form, you had better have a session token)
-        $sessionVerificationRule = ['valid_session' => [function(&$requestData, &$errors, &$fenceUp){
+        // if you're submitting a form, you had better have a session token...
+        $sessionVerificationRule = ['valid_session' => [function(array &$requestData, ValidationErrorContainer &$errors, bool &$fenceUp){
             $fenceUp = true;
             if(!$this->sessionManager->getSessionId())
                 $errors->add('invalid_session_token', "Session token was invalid or not provided");
         }]];
 
-        // prepend csrf validation rule
-        $csrfRule = ['csrf' => ['#required', function(&$requestData, &$errors, &$fenceUp){
+        // ...and a valid csrf token
+        $csrfRule = ['csrf' => ['#required', function(array &$requestData, ValidationErrorContainer &$errors, bool &$fenceUp){
             $fenceUp = true;
             if($this->sessionManager->getCsrf() != $requestData['csrf'])
                 $errors->add('invalid_csrf_token', "CSRF token was invalid or not provided");
@@ -86,7 +89,7 @@ abstract class FormDataValidator
          * END
          ********************************************************************************************/
 
-        $this->_expandFields();
+        $this->expandFields();
 
         //dad($this->expandedFields);
         //dad($this->request);
@@ -239,7 +242,7 @@ abstract class FormDataValidator
         return !($this->errors->count() > 0);
     }
 
-    private function _expandFields() : void
+    private function expandFields() : void
     {
         // expand fields such that when array syntax provided .*.etc.*....
         // each individual element is expanded into its own "field"
@@ -252,7 +255,7 @@ abstract class FormDataValidator
 
             $keys = explode('.', $field);
             $index = 0;
-            $this->_expandFieldsRecursiveLoop($this->requestData, $keys, $index, []);
+            $this->expandFieldsRecursiveLoop($this->requestData, $keys, $index, []);
         }
     }
 
@@ -260,10 +263,10 @@ abstract class FormDataValidator
      * @param mixed $data
      * @param array<string> $keys
      * @param int $index
-     * @param array<string> $path
+     * @param array<int|string> $path
      * @return void
      */
-    private function _expandFieldsRecursiveLoop(mixed $data, array &$keys, int &$index, array $path) : void
+    private function expandFieldsRecursiveLoop(mixed $data, array &$keys, int &$index, array $path) : void
     {
         if ($index >= count($keys))
             return;
@@ -280,23 +283,23 @@ abstract class FormDataValidator
                 foreach ($data as $item)
                 {
                     $path[count($path) - 1] = $itemIndex++;
-                    $this->_expandFieldsProcessItem($item, $keys, $index, $path);
+                    $this->expandFieldsProcessItem($item, $keys, $index, $path);
                     $path[count($path) - 1] = '*';
                 }
             }
             else
             {
-                $this->_expandFieldsProcessItem($this->valueNotPresentToken, $keys, $index, $path);
+                $this->expandFieldsProcessItem($this->valueNotPresentToken, $keys, $index, $path);
             }
 
         }
         else if (isset($data[$currentKey]))
         {
-            $this->_expandFieldsProcessItem($data[$currentKey], $keys, $index, $path);
+            $this->expandFieldsProcessItem($data[$currentKey], $keys, $index, $path);
         }
         else
         {
-            $this->_expandFieldsProcessItem($this->valueNotPresentToken, $keys, $index, $path);
+            $this->expandFieldsProcessItem($this->valueNotPresentToken, $keys, $index, $path);
         }
 
         array_pop($path);
@@ -306,21 +309,24 @@ abstract class FormDataValidator
      * @param mixed $item
      * @param array<string> $keys
      * @param int $index
-     * @param array<string> $path
+     * @param array<int|string> $path
      * @return void
      */
-    private function _expandFieldsProcessItem(mixed $item, array &$keys, int &$index, array $path) : void
+    private function expandFieldsProcessItem(mixed $item, array &$keys, int &$index, array $path) : void
     {
         if ($index < count($keys) - 1)
         {
             $index++;
-            $this->_expandFieldsRecursiveLoop($item, $keys, $index, $path);
+            $this->expandFieldsRecursiveLoop($item, $keys, $index, $path);
             $index--;
         }
         else
         {
-            $newPath = array_shift($path); // separate first element
+            $firstPathElement = array_shift($path); // separate first element
+            if($firstPathElement === null)
+                return;
 
+            $newPath = (string)$firstPathElement;
             foreach($path as $p)
                 $newPath .= '[' . $p . ']';  // add remaining elements with brackets
 
@@ -329,7 +335,7 @@ abstract class FormDataValidator
     }
 
 
-    private function _setErrorMessage(string $method, string $field, string $defaultMsg) : void
+    private function setErrorMessage(string $method, string $field, string $defaultMsg) : void
     {
         $explodedField = explode('.', $field);
 
@@ -372,7 +378,7 @@ abstract class FormDataValidator
      ******************************************************************************/
 
     /**
-     * @param mixed[] $params
+     * @param array<int, mixed> $params
      */
     private function required(array $params) : void
     {
@@ -384,7 +390,7 @@ abstract class FormDataValidator
         if(is_array($params[1]))
         {
             if(count($params[1]) === 0)
-                $this->_setErrorMessage('required', $params[0], $params[0] . ' is required');
+                $this->setErrorMessage('required', $params[0], $params[0] . ' is required');
 
             return;
         }
@@ -393,7 +399,7 @@ abstract class FormDataValidator
         if(is_object($params[1]) && get_class($params[1]) === 'Dren\UploadedFile')
         {
             if($params[1]->hasError())
-                $this->_setErrorMessage('required', $params[0], $params[0] . ' is required');
+                $this->setErrorMessage('required', $params[0], $params[0] . ' is required');
 
             return;
         }
@@ -402,22 +408,22 @@ abstract class FormDataValidator
         if($params[1] !== null && $params[1] !== '')
             return;
 
-        $this->_setErrorMessage('required', $params[0], $params[0] . ' is required');
+        $this->setErrorMessage('required', $params[0], $params[0] . ' is required');
     }
 
     /**
-     * @param mixed[] $params
+     * @param array<int, mixed> $params
      */
     private function numeric(array $params) : void
     {
         if(is_numeric($params[1]))
             return;
 
-        $this->_setErrorMessage('numeric', $params[0], $params[0] . ' must be numeric');
+        $this->setErrorMessage('numeric', $params[0], $params[0] . ' must be numeric');
     }
 
     /**
-     * @param mixed[] $params
+     * @param array<int, mixed> $params
      */
     private function min_char(array $params) : void
     {
@@ -425,11 +431,11 @@ abstract class FormDataValidator
         if(strlen($valString) >= $params[2])
             return;
 
-        $this->_setErrorMessage('min_char', $params[0], $params[0] . ' must be at least ' . $params[2] . ' characters');
+        $this->setErrorMessage('min_char', $params[0], $params[0] . ' must be at least ' . $params[2] . ' characters');
     }
 
     /**
-     * @param mixed[] $params
+     * @param array<int, mixed> $params
      */
     private function max_char(array $params) : void
     {
@@ -437,29 +443,29 @@ abstract class FormDataValidator
         if(strlen($valString) <= $params[2])
             return;
 
-        $this->_setErrorMessage('max_char', $params[0], $params[0] . ' must be less than or equal to ' . $params[2] . ' characters');
+        $this->setErrorMessage('max_char', $params[0], $params[0] . ' must be less than or equal to ' . $params[2] . ' characters');
     }
 
     /**
-     * @param mixed[] $params
+     * @param array<int, mixed> $params
      */
     private function email(array $params) : void
     {
         if(filter_var($params[1], FILTER_VALIDATE_EMAIL) !== false)
             return;
 
-        $this->_setErrorMessage('email', $params[0], $params[0] . ' must be an email address');
+        $this->setErrorMessage('email', $params[0], $params[0] . ' must be an email address');
     }
 
     /**
-     * @param mixed[] $params
+     * @param array<int, mixed> $params
      */
     private function same(array $params) : void
     {
         if(key_exists($params[2], $this->requestData) && $this->requestData[$params[2]] == $params[1])
             return;
 
-        $this->_setErrorMessage('same', $params[0], $params[0] . ' must match ' . $params[2]);
+        $this->setErrorMessage('same', $params[0], $params[0] . ' must match ' . $params[2]);
     }
 
     //!!!!! NOTE !!!!!!!
@@ -468,7 +474,7 @@ abstract class FormDataValidator
     // itself, user input is still always parameterized
 
     /**
-     * @param mixed[] $params
+     * @param array<int, mixed> $params
      * @throws \Exception
      */
     private function unique(array $params) : void
@@ -476,55 +482,55 @@ abstract class FormDataValidator
         if(!App::get()->getDb()->query("SELECT * FROM " . $params[2] . " WHERE " . $params[3] . " = ?", [$params[1]])->singleAsObj()->exec())
             return;
 
-        $this->_setErrorMessage('unique', $params[0], $params[0] . ' must be unique');
+        $this->setErrorMessage('unique', $params[0], $params[0] . ' must be unique');
     }
 
     /**
-     * @param mixed[] $params
+     * @param array<int, mixed> $params
      */
     private function is_array(array $params) : void
     {
         if(\is_array($params[1]))
             return;
 
-        $this->_setErrorMessage('is_array', $params[0], $params[0] . ' must be an array');
+        $this->setErrorMessage('is_array', $params[0], $params[0] . ' must be an array');
     }
 
     /**
-     * @param mixed[] $params
+     * @param array<int, mixed> $params
      */
     private function min_array_elements(array $params) : void
     {
         if(count($params[1]) >= $params[2])
             return;
 
-        $this->_setErrorMessage('min_array_elements', $params[0], $params[0] . ' must contain at least ' . $params[2] . ' elements');
+        $this->setErrorMessage('min_array_elements', $params[0], $params[0] . ' must contain at least ' . $params[2] . ' elements');
     }
 
     /**
-     * @param mixed[] $params
+     * @param array<int, mixed> $params
      */
     private function max_array_elements(array $params) : void
     {
         if(count($params[1]) <= $params[2])
             return;
 
-        $this->_setErrorMessage('max_array_elements', $params[0], $params[0] . ' must contain at no more than ' . $params[2] . ' elements');
+        $this->setErrorMessage('max_array_elements', $params[0], $params[0] . ' must contain at no more than ' . $params[2] . ' elements');
     }
 
     /**
-     * @param mixed[] $params
+     * @param array<int, mixed> $params
      */
     private function is_file(array $params) : void
     {
         if(is_object($params[1]) && get_class($params[1]) === 'Dren\UploadedFile' && !$params[1]->hasError())
             return;
 
-        $this->_setErrorMessage('is_file', $params[0], $params[0] . ' must be a valid file');
+        $this->setErrorMessage('is_file', $params[0], $params[0] . ' must be a valid file');
     }
 
     /**
-     * @param mixed[] $params
+     * @param array<int, mixed> $params
      */
     private function max_file_size(array $params) : void
     {
@@ -534,11 +540,11 @@ abstract class FormDataValidator
         if($uploadedFileSizeInKB <= $maxFileSize)
             return;
 
-        $this->_setErrorMessage('max_file_size', $params[0], $params[0] . ' must be less than or equal to the following size: ' . $params[2] . 'kb');
+        $this->setErrorMessage('max_file_size', $params[0], $params[0] . ' must be less than or equal to the following size: ' . $params[2] . 'kb');
     }
 
     /**
-     * @param mixed[] $params
+     * @param array<int, mixed> $params
      */
     private function mimetypes(array $params) : void
     {
@@ -552,11 +558,11 @@ abstract class FormDataValidator
         if(in_array($params[1]->getMime(), $allowableMimesForThisFile))
             return;
 
-        $this->_setErrorMessage('mimetypes', $params[0], $params[0] . ' must be one of the following file types: ' . implode(',', $allowableMimesForThisFile));
+        $this->setErrorMessage('mimetypes', $params[0], $params[0] . ' must be one of the following file types: ' . implode(',', $allowableMimesForThisFile));
     }
 
     /**
-     * @param mixed[] $params
+     * @param array<int, mixed> $params
      */
     private function in(array $params) : void
     {
@@ -567,7 +573,7 @@ abstract class FormDataValidator
         if(in_array($params[1], $allowableValues))
             return;
 
-        $this->_setErrorMessage('in', $params[0], $params[0] . ' must be one of the following values: ' . implode(',', $allowableValues));
+        $this->setErrorMessage('in', $params[0], $params[0] . ' must be one of the following values: ' . implode(',', $allowableValues));
     }
 
 }

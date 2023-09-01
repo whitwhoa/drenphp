@@ -23,7 +23,7 @@ class Response
         $this->ipLock = App::get()->getIpLock();
     }
 
-    public function setCode(int $httpCode) : object
+    public function setCode(int $httpCode) : Response
     {
         $this->code = $httpCode;
         return $this;

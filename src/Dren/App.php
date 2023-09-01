@@ -167,6 +167,7 @@ class App
             // Execute each middleware. If the return type is Dren\Response, send the response
             foreach(Router::getActiveRoute()->getMiddleware() as $m)
             {
+                /** @var Middleware $m */
                 $middlewareResponse = (new $m())->handle();
 
                 if(gettype($middlewareResponse) === 'object' && get_class($middlewareResponse) === 'Dren\Response')
@@ -182,8 +183,9 @@ class App
 
             // Execute request validator. If provided and validate() returns false,
             // return a redirect or json response depending on the set failureResponseType
+            /** @var FormDataValidator $fdv */
             $fdv = Router::getActiveRoute()->getFormDataValidator();
-            if($fdv)
+            if($fdv !== null)
             {
                 $fdv = new $fdv($this->request, $this->sessionManager);
 

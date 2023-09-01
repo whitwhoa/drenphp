@@ -13,7 +13,7 @@ class HttpClient
     private string $browserAgent;
     private string $cookiePath;
     private string $postType; // HTTP or JSON
-    /** @var array<string, mixed>  */
+    /** @var array<int|string, mixed>  */
     private array $postVars;
     private string $serverResponse;
     private ?int $httpStatus;
@@ -146,7 +146,7 @@ class HttpClient
         return $this->cookiePath;
     }
 
-    /** @return array<string, mixed> */
+    /** @return array<int|string, mixed> */
     public function getPostVars(): array
     {
         return $this->postVars;
@@ -211,6 +211,10 @@ class HttpClient
             else if($this->postType === 'JSON')
             {
                 $postDataAsJson = json_encode($this->postVars);
+
+                if($postDataAsJson === false)
+                    throw new Exception('Unable to encode json data');
+
                 curl_setopt($curl, CURLOPT_CUSTOMREQUEST, "POST");
                 curl_setopt($curl, CURLOPT_POSTFIELDS, $postDataAsJson);
                 curl_setopt($curl, CURLOPT_HTTPHEADER, [
@@ -227,13 +231,28 @@ class HttpClient
         if($this->httpProxy !== '')
             curl_setopt($curl, CURLOPT_PROXY, $this->httpProxy);
 
-        $this->serverResponse = curl_exec($curl);
+        $curlExecResponse = curl_exec($curl);
+        if($curlExecResponse === false)
+            throw new Exception('Unable to execute request');
+
+        /**
+         * with CURLOPT_RETURNTRANSFER set to true curl_exec returns string on success, phpstan does not know this,
+         * so we ignore the next line
+         *
+         * @phpstan-ignore-next-line
+         */
+        $this->serverResponse = $curlExecResponse;
 
         if(curl_error($curl))
             throw new Exception('cURL error: ' . curl_error($curl));
 
         $this->httpStatus = curl_getinfo($curl, CURLINFO_HTTP_CODE);
-        $this->headerOutput = curl_getinfo($curl, CURLINFO_HEADER_OUT);
+        $curlHeaderContent = curl_getinfo($curl, CURLINFO_HEADER_OUT);
+
+        if(!$curlHeaderContent)
+            $this->headerOutput = '';
+        else
+            $this->headerOutput = $curlHeaderContent;
 
         curl_close($curl);
 

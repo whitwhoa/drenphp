@@ -110,7 +110,12 @@ class FileLockableDataStore extends LockableDataStore
 
         rewind($this->fileResource);
 
-        $contents = fread($this->fileResource, filesize($this->fileFullPath)); // Read the entire file
+        $fileSize = filesize($this->fileFullPath);
+
+        if($fileSize === false)
+            throw new Exception('Unable to obtain file size');
+
+        $contents = fread($this->fileResource, $fileSize); // Read the entire file
 
         if(!$contents)
             throw new Exception('Failed to retrieve file contents');
@@ -220,9 +225,17 @@ class FileLockableDataStore extends LockableDataStore
         unlink($this->containerName . '/' . $id);
     }
 
+    /**
+     * @throws Exception
+     */
     public function getContentsUnsafe(string $id): string
     {
-        return file_get_contents($this->containerName . '/' . $id);
+        $fileContents = file_get_contents($this->containerName . '/' . $id);
+
+        if($fileContents === false)
+            throw new Exception('Unable to read contents of file');
+
+        return $fileContents;
     }
 
     public function tryToLock(string $id): bool
@@ -250,6 +263,7 @@ class FileLockableDataStore extends LockableDataStore
 
     /**
      * @return array<string>
+     * @throws Exception
      */
     public function getAllElementsInContainer(): array
     {
@@ -257,6 +271,10 @@ class FileLockableDataStore extends LockableDataStore
             return [];
 
         $files = scandir($this->containerName);
+
+        if($files === false)
+            throw new Exception('Unable to read directory listing');
+
         return array_diff($files, ['.', '..', '.gitkeep']);
     }
 }
