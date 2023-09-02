@@ -6,7 +6,7 @@ namespace Dren;
 class DAO
 {
     protected ?string $dbName = null;
-    protected ?MySQLCon $db = null;
+    protected MySQLCon $db;
 
     public function __construct()
     {

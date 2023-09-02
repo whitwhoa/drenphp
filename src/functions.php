@@ -149,7 +149,11 @@ function arrays_are_equal(array $a1, array $a2) : bool
  */
 function normalize_string(string $in) : string
 {
-    return strtolower(preg_replace("/[^a-zA-Z0-9]+/", "", $in));
+    $replacedString = preg_replace("/[^a-zA-Z0-9]+/", "", $in);
+    if(!is_string($replacedString))
+        return '';
+
+    return strtolower($replacedString);
 }
 
 /**

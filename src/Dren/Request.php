@@ -108,8 +108,16 @@ class Request
         return $this->getHeader('X-Requested-With') === 'XMLHttpRequest';
     }
 
+    /**
+     * @param string $paramName
+     * @return mixed
+     * @throws Exception
+     */
     public function getRouteParam(string $paramName) : mixed
     {
+        if($this->route === null)
+            throw new Exception("Route cannot be null");
+
         if(array_key_exists($paramName, $this->route->getUriParams()))
             return $this->route->getUriParams()[$paramName];
         else
@@ -144,8 +152,15 @@ class Request
         return null;
     }
 
+    /**
+     * @return Route
+     * @throws Exception
+     */
     public function getRoute() : Route
     {
+        if($this->route === null)
+            throw new Exception("Route cannot be null");
+
         return $this->route;
     }
 

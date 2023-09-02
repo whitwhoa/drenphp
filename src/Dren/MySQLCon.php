@@ -44,6 +44,10 @@ class MySQLCon
     function __destruct() 
     {
         // close connection
+        // This sucks because for type strictness and high level static analysis we have to make $pdo nullable just so
+        // we can clear it here, which in reality makes no difference because the script is going to end as this is destructed
+        // anyway, but whatever, now we get to add a bunch of checks and exceptions everywhere that will never be useful
+        // for the sake of "correctness"...idk why I'm complaining, I chose to implement extreme strictness...
         $this->pdo = null;
     }
 
@@ -108,18 +112,39 @@ class MySQLCon
         return $this;
     }
 
+    /**
+     * @return void
+     * @throws Exception
+     */
     public function beginTransaction(): void
     {
+        if($this->pdo === null)
+            throw new Exception("PDO object is null...this will never happen");
+
         $this->pdo->beginTransaction();
     }
 
+    /**
+     * @return void
+     * @throws Exception
+     */
     public function commitTransaction(): void
     {
+        if($this->pdo === null)
+            throw new Exception("PDO object is null...this will never happen");
+
         $this->pdo->commit();
     }
 
+    /**
+     * @return void
+     * @throws Exception
+     */
     public function rollbackTransaction(): void
     {
+        if($this->pdo === null)
+            throw new Exception("PDO object is null...this will never happen");
+
         $this->pdo->rollBack();
     }
 
@@ -129,30 +154,38 @@ class MySQLCon
      */
     public function exec() : mixed
     {
+        if($this->query === null)
+            throw new Exception("Query value cannot be null");
+
         $qt = strtolower(explode(' ', trim($this->query))[0]);
 
         if(!in_array($qt, ['select', 'insert', 'update', 'delete']))
             throw new Exception('Query not a select, insert, update, delete, or unable to parse query type');
 
-        switch($qt)
+        // not a fan of thick case statements, this is easier to read...come at me bro
+        if($qt === 'select')
         {
-            case 'select':
-                $this->generateMysqlStatement();
-                $this->generateMysqlResultset();
+            $this->generateMysqlStatement();
+            $this->generateMysqlResultset();
 
-                if($this->single)
-                    return $this->resultSet[0] ?? NULL;
+            if($this->single)
+                return $this->resultSet[0] ?? NULL;
 
-                return $this->resultSet;
+            return $this->resultSet;
+        }
+        elseif($qt === 'insert')
+        {
+            $this->generateMysqlStatement();
 
-            case 'insert':
-                $this->generateMysqlStatement();
-                return $this->pdo->lastInsertId();
+            if($this->pdo === null)
+                throw new Exception("PDO object is null...this will never happen");
 
-            case 'update':
-            case 'delete':
-                $this->generateMysqlStatement();
-                return null;
+            return $this->pdo->lastInsertId();
+        }
+        elseif($qt === 'update' || $qt === 'delete')
+        {
+            $this->generateMysqlStatement();
+            return null;
         }
 
         return null;
@@ -202,9 +235,16 @@ class MySQLCon
      * provided in parameter $bindArray and execute
      *
      * @return void
+     * @throws Exception
      */
     private function generateMysqlStatement(): void
     {
+        if($this->pdo === null)
+            throw new Exception("PDO object is null...this will never happen");
+
+        if($this->query === null)
+            throw new Exception("Query cannot be null");
+
         $this->pdoStatement = $this->pdo->prepare($this->query);
 
         if(count($this->bind) > 0)
@@ -231,9 +271,13 @@ class MySQLCon
      * Generate a result set
      *
      * @return void
+     * @throws Exception
      */
     private function generateMysqlResultset(): void
     {
+        if($this->pdoStatement === null)
+            throw new Exception("PDOStatement cannot be null");
+
 		$this->resultSet = $this->pdoStatement->fetchAll($this->fetchStyle);
     }
 

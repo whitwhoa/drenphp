@@ -4,6 +4,8 @@ declare(strict_types=1);
 namespace Dren;
 
 
+use Exception;
+
 class Route
 {
     // we declare these as nullable as they are set in the Router class via method chaining, and we must return an
@@ -181,9 +183,15 @@ class Route
         return $this->uriParams;
     }
 
-    // OTHER MEMBERS
+    /**
+     * @return void
+     * @throws Exception
+     */
     private function generateRegexPattern(): void
     {
+        if($this->uri === null)
+            throw new Exception("URI cannot be null");
+
         $rawRoute = $this->uri;
 
         $pattern = preg_quote($rawRoute, '/');

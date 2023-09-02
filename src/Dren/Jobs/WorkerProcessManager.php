@@ -17,7 +17,7 @@ class WorkerProcessManager extends Job
 
     private QueueConfig $queueConfig;
     private LockableDataStore $lockableDataStore;
-    private ?string $dataStoreId;
+    private string $dataStoreId;
     private string $workerScript;
 
     function __construct(mixed $data = null)
@@ -27,8 +27,9 @@ class WorkerProcessManager extends Job
         $this->queueConfig = App::get()->getConfig()->queue;
         $this->workerScript = App::get()->getPrivateDir() . '/worker';
 
-        if($this->queueConfig->lockable_datastore_type === 'file')
-        {
+        //TODO: re-implement this conditional when it's necessary
+//        if($this->queueConfig->lockable_datastore_type === 'file')
+//        {
             $this->dataStoreId = 'data.json';
             $this->lockableDataStore = new FileLockableDataStore(App::get()->getPrivateDir() . '/storage/system/queue');
 
@@ -39,12 +40,8 @@ class WorkerProcessManager extends Job
             // to the child processes that this parent process spins up...yes, that's a thing. The functionality from the job
             // executor will ensure that only one of these jobs is running at a time anyway, therefore there is already no
             // chance of file read/write race conditions
-        }
-        else
-        {
-            $this->dataStoreId = null; // This is only used to initialize the member to some value, we never use it as null
-            // TODO: addtional LockableDataStore functionality should be implemented here, for example when we add redis support
-        }
+//        }
+
 
     }
 

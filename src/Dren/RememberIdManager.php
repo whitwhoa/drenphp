@@ -9,13 +9,13 @@ use stdClass;
 class RememberIdManager
 {
     private AppConfig $config;
-    private ?MySQLCon $db;
+    private MySQLCon $db;
     private SecurityUtility $securityUtility;
     private Request $request;
     private ?string $rememberId;
 
 
-    public function __construct(AppConfig $appConfig, Request $request, ?MySQLCon $db, SecurityUtility $su)
+    public function __construct(AppConfig $appConfig, Request $request, MySQLCon $db, SecurityUtility $su)
     {
         $this->config = $appConfig;
         // We make this nullable because if we're running the framework without a database connection we'll never
@@ -47,9 +47,6 @@ class RememberIdManager
         // if provided token is valid, check if there's still an entry in the db
         if($rid)
         {
-            if(!$this->db)
-                throw new Exception("Attempting to utilize remember ids without valid database connection");
-
             // check database
             $resultSet = $this->db
                 ->query('SELECT * FROM remember_ids WHERE remember_id = ?', [$rid])

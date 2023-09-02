@@ -127,6 +127,9 @@ class JobExecutor
      */
     private function execJob() : bool
     {
+        if($this->job === null)
+            return false;
+
         if(!$this->job->preCondition())
         {
             $this->mutex->closeLock();
@@ -162,7 +165,7 @@ class JobExecutor
 
         $this->job->logic();
 
-        if($this->job->shouldTrackExecution())
+        if($this->job->shouldTrackExecution() && $this->executionId !== null)
             $this->jobDao->updateJobExecution($this->executionId, date('Y-m-d H:i:s'), 'COMPLETED', 'SUCCESS', $this->job->getSuccessMessage());
 
         $this->mutex->closeLock();

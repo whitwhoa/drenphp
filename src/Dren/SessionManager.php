@@ -13,8 +13,8 @@ class SessionManager
     private SecurityUtility $securityUtility;
     private ?Request $request;
     private ?string $sessionId;
-    private ?LockableDataStore $tmpLockableDataStore;
-    private ?LockableDataStore $sessionLockableDataStore;
+    private LockableDataStore $tmpLockableDataStore;
+    private LockableDataStore $sessionLockableDataStore;
     private ?Session $session;
 
     /** @var array<string, mixed> */
@@ -27,11 +27,12 @@ class SessionManager
         $this->sessionId = null;
         $this->request = null; // null here because we can't completely initialize until after we receive request
 
-        if($appConfig->lockable_datastore_type === 'file')
-        {
+        // TODO: add this back if we ever actually implement a redis LockableDataStore
+//        if($appConfig->lockable_datastore_type === 'file')
+//        {
             $this->tmpLockableDataStore = new FileLockableDataStore($this->sessionConfig->directory);
             $this->sessionLockableDataStore = new FileLockableDataStore($this->sessionConfig->directory);
-        }
+//        }
         // TODO: once we implement redis functionality, that check will go here
 
         $this->session = null;
@@ -82,8 +83,15 @@ class SessionManager
         return $this->tmpLockableDataStore->idExists($sessionId);
     }
 
+    /**
+     * @return void
+     * @throws Exception
+     */
     private function getTokenFromClient(): void
     {
+        if($this->request === null)
+            throw new Exception("Request cannot be null");
+
         $unverified_session_id = null;
 
         if($this->request->getRoute()->getRouteType() === 'web')
@@ -111,7 +119,7 @@ class SessionManager
     {
         // If we were unable to obtain a lockable data store, then it's likely that it has been removed, so we treat
         // this request as if it did not send a session token.
-        if(!$this->tmpLockableDataStore->openLockIfExists($this->sessionId))
+        if($this->sessionId !== null && !$this->tmpLockableDataStore->openLockIfExists($this->sessionId))
         {
             $this->sessionId = null;
             return;
@@ -137,6 +145,9 @@ class SessionManager
             $this->loadFlashed();
 
             // If not blocking, then update the session's last_used property and release the lock
+            if($this->request === null)
+                throw new Exception("Request cannot be null");
+
             if(!$this->request->getRoute()->isBlocking())
                 $this->terminate();
 
@@ -166,6 +177,10 @@ class SessionManager
             }
 
             $this->sessionId = $this->session->updatedToken;
+
+            if($this->sessionId === null)
+                throw new Exception("Session ID cannot be null");
+
             if(!$this->sessionLockableDataStore->openLockIfExists($this->sessionId))
                 throw new Exception('Unable to open session lock for token. This should never happen.');
 
@@ -176,6 +191,9 @@ class SessionManager
             $this->setClientSessionId();
 
             $this->loadFlashed();
+
+            if($this->request === null)
+                throw new Exception("Request cannot be null");
 
             if(!$this->request->getRoute()->isBlocking())
                 $this->terminate();
@@ -237,12 +255,22 @@ class SessionManager
 
         $this->loadFlashed();
 
+        if($this->request === null)
+            throw new Exception("Request cannot be null");
+
         if(!$this->request->getRoute()->isBlocking())
             $this->terminate();
     }
 
+    /**
+     * @return void
+     * @throws Exception
+     */
     private function loadFlashed() : void
     {
+        if($this->session === null)
+            throw new Exception("Session cannot be null");
+
         $this->flashed = $this->session->flashData;
         $this->session->flashData = [];
     }
@@ -255,12 +283,18 @@ class SessionManager
      */
     public function upgradeSession(int $accountId, array $roles) : void
     {
+        if($this->request === null)
+            throw new Exception("Request cannot be null");
+
         if(!$this->request->getRoute()->isBlocking())
             throw new Exception('You are attempting to upgrade a session in a non-blocking route. This is not allowed.');
 
         //Logger::debug('Regenerating session due to successful account authentication');
 
         $newToken = $this->generateNewSession();
+
+        if($this->session === null)
+            throw new Exception("Session cannot be null");
 
         $flashData = $this->session->flashData;
         $data = $this->session->data;
@@ -325,8 +359,14 @@ class SessionManager
      */
     private function setClientSessionId() : void
     {
+        if($this->sessionId === null)
+            throw new Exception("Session ID cannot be null");
+
         // encrypt token for storage on client
         $encryptedToken = $this->securityUtility->encryptString($this->sessionId);
+
+        if($this->request === null)
+            throw new Exception("Request cannot be null");
 
         if($this->request->getRoute()->getRouteType() === 'web')
         {
@@ -348,8 +388,15 @@ class SessionManager
         }
     }
 
+    /**
+     * @return void
+     * @throws Exception
+     */
     public function removeClientSessionId() : void
     {
+        if($this->request === null)
+            throw new Exception("Request cannot be null");
+
         if($this->request->getRoute()->getRouteType() === 'web')
         {
             setcookie(
@@ -411,6 +458,9 @@ class SessionManager
      */
     private function terminate() : void
     {
+        if($this->session === null)
+            throw new Exception("Session cannot be null");
+
         $this->session->lastUsed = time();
         $this->sessionLockableDataStore->overwriteContents($this->session->toJson());
         $this->sessionLockableDataStore->closeLock();
@@ -428,6 +478,9 @@ class SessionManager
         if(!$this->sessionId)
             return;
 
+        if($this->request === null)
+            throw new Exception("Request cannot be null");
+
         if(!$this->request->getRoute()->isBlocking())
             return;
 
@@ -441,6 +494,9 @@ class SessionManager
     {
         if(!$this->sessionId)
             $this->startNewSession();
+
+        if($this->session === null)
+            throw new Exception("Session cannot be null");
 
         $this->session->flashData[$key] = $data;
     }
@@ -461,6 +517,9 @@ class SessionManager
         if(!$this->sessionId)
             $this->startNewSession();
 
+        if($this->session === null)
+            throw new Exception("Session cannot be null");
+
         $this->session->data[$key] = $data;
     }
 
@@ -480,13 +539,23 @@ class SessionManager
         if(!$this->sessionId)
             $this->startNewSession();
 
+        if($this->session === null)
+            throw new Exception("Session cannot be null");
+
         return $this->session->csrf;
     }
 
+    /**
+     * @return bool
+     * @throws Exception
+     */
     public function isAuthenticated() : bool
     {
         if(!$this->sessionId)
             return false;
+
+        if($this->session === null)
+            throw new Exception("Session cannot be null");
 
         if(!$this->session->accountId)
             return false;
@@ -494,8 +563,15 @@ class SessionManager
         return true;
     }
 
+    /**
+     * @return int|null
+     * @throws Exception
+     */
     public function getAccountId() : ?int
     {
+        if($this->session === null)
+            throw new Exception("Session cannot be null");
+
         if(!$this->session->accountId)
             return null;
 

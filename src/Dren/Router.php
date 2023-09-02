@@ -30,11 +30,13 @@ class Router
     public static function web() : Router
     {
         self::init();
+        assert(self::$instance !== null);
 
         $r = new Route();
         $r->setRouteType('web');
 
         self::$instance->routes[] = $r;
+
 
         return self::$instance;
     }
@@ -42,6 +44,7 @@ class Router
     public static function mobile() : Router
     {
         self::init();
+        assert(self::$instance !== null);
 
         $r = new Route();
         $r->setRouteType('mobile');
@@ -54,6 +57,7 @@ class Router
     public static function api() : Router
     {
         self::init();
+        assert(self::$instance !== null);
 
         $r = new Route();
         $r->setRouteType('api');
@@ -64,16 +68,24 @@ class Router
     }
 
     /**
-     * @throws NotFound
+     * @param string $requestUri
+     * @param string $requestMethod
+     * @return void
+     * @throws NotFound|Exception
      */
     public static function setActiveRoute(string $requestUri, string $requestMethod): void
     {
         self::init();
+        assert(self::$instance !== null);
 
         $i = 0;
         foreach(self::$instance->routes as $r)
         {
-           if(preg_match($r->getUriRegex(), $requestUri))
+            $uriRegex = $r->getUriRegex();
+            if($uriRegex === null)
+                throw new Exception("URI Regex pattern cannot be null");
+
+           if(preg_match($uriRegex, $requestUri))
            {
                if($r->getRequestMethod() !== strtoupper($requestMethod))
                    throw new NotFound('Route not found. Incompatible request method provided.');
@@ -89,8 +101,15 @@ class Router
         throw new NotFound('Route not found');
     }
 
+    /**
+     * @return Route
+     * @throws Exception
+     */
     public static function getActiveRoute(): Route
     {
+        if(self::$instance === null)
+            throw new Exception("Router instance cannot be null");
+
         return self::$instance->routes[self::$instance->activeRoute];
     }
 

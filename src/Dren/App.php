@@ -104,8 +104,14 @@ class App
 
     public function executeHttp() : void
     {
+        if($this->request === null || $this->sessionManager === null || $this->viewCompiler === null)
+            die("App did not successfully initialize");
+
         try
         {
+//            if($this->request === null || $this->sessionManager === null || $this->viewCompiler === null)
+//                throw new Exception("App did not successfully initialize");
+
             // Do route lookup or throw not found exception
             Router::setActiveRoute($this->request->getURI(), $this->request->getMethod());
 
@@ -122,10 +128,14 @@ class App
 
                 if(!$this->sessionManager->getSessionId() && $this->rememberIdManager->hasRememberId())
                 {
+                    $rememberId = $this->rememberIdManager->getRememberId();
+                    if($rememberId === null)
+                        throw new Exception("Remember Id cannot be null");
+
                     if($this->config->lockable_datastore_type === 'file')
                     {
                         $this->ridLock = new FileLockableDataStore($this->privateDir . '/storage/system/locks/rid');
-                        $this->ridLock->openLock($this->rememberIdManager->getRememberId());
+                        $this->ridLock->openLock($rememberId);
                         $this->ridLock->overwriteContents((string)time());
                     }
                     // TODO: add additional blocks for additional LockableDataStores
@@ -140,10 +150,15 @@ class App
                     {
                         $account = $this->rememberIdManager->getRememberIdAccount();
                         $this->sessionManager->startNewSession($account->account_id, $account->roles);
-                        $this->rememberIdManager->associateSessionIdWithRememberId($this->sessionManager->getSessionId());
+
+                        $sid = $this->sessionManager->getSessionId();
+                        if($sid === null)
+                            throw new Exception("Session id cannot be null");
+
+                        $this->rememberIdManager->associateSessionIdWithRememberId($sid);
                     }
 
-                    $this->ridLock->closeLock();
+                    $this->ridLock?->closeLock();
                 }
             }
 
@@ -219,7 +234,6 @@ class App
         }
         catch(Forbidden|NotFound|Unauthorized|UnprocessableEntity $e)
         {
-            //if($this->request->expectsJson())
             if($this->request->isAjax())
             {
                 $message = '';
@@ -279,25 +293,51 @@ class App
     }
 
     /**
+     * @param string|null $dbName
+     * @return MySQLCon
      * @throws Exception
      */
     public function getDb(?string $dbName = null) : MySQLCon
     {
+        if($this->dbConMan === null)
+            throw new Exception("Connection manager was not initialized");
+
         return $this->dbConMan->get($dbName);
     }
 
+    /**
+     * @return Request
+     * @throws Exception
+     */
     public function getRequest() : Request
     {
+        if($this->request === null)
+            throw new Exception("Request was not initialized");
+
         return $this->request;
     }
 
-    public function getSessionManager() : ?SessionManager
+    /**
+     * @return SessionManager
+     * @throws Exception
+     */
+    public function getSessionManager() : SessionManager
     {
+        if($this->sessionManager === null)
+            throw new Exception("SessionManager was not initialized");
+
         return $this->sessionManager;
     }
 
+    /**
+     * @return ViewCompiler
+     * @throws Exception
+     */
     public function getViewCompiler() : ViewCompiler
     {
+        if($this->viewCompiler === null)
+            throw new Exception("ViewCompiler was not initialized");
+
         return $this->viewCompiler;
     }
 
@@ -321,8 +361,15 @@ class App
         return $this->ridLock;
     }
 
+    /**
+     * @return RememberIdManager
+     * @throws Exception
+     */
     public function getRememberIdManager() : RememberIdManager
     {
+        if($this->rememberIdManager === null)
+            throw new Exception("RememberIdManager was not initialized");
+
         return $this->rememberIdManager;
     }
 
