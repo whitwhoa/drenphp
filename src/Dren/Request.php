@@ -4,6 +4,8 @@ declare(strict_types=1);
 namespace Dren;
 
 
+use Exception;
+
 class Request
 {
 
@@ -167,9 +169,19 @@ class Request
         $this->method = $_SERVER['REQUEST_METHOD'] ?? NULL;
     }
 
+    /**
+     * @throws Exception
+     */
     private function setURI() : void
     {
-        $this->uri = isset($_SERVER['REQUEST_URI']) ? strtok($_SERVER["REQUEST_URI"],'?') : NULL;
+        if(!isset($_SERVER['REQUEST_URI']))
+            throw new Exception("Request uri must be provided");
+
+        $baseUri = strtok($_SERVER["REQUEST_URI"],'?');
+        if($baseUri === false)
+            throw new Exception("Unable to tokenize request uri");
+
+        $this->uri = $baseUri;
     }
 
     private function setGetData() : void

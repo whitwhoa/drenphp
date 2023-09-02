@@ -4,6 +4,7 @@ declare(strict_types=1);
 namespace Dren;
 
 use Dren\Exceptions\NotFound;
+use Exception;
 
 class Router
 {
@@ -93,18 +94,34 @@ class Router
         return self::$instance->routes[self::$instance->activeRoute];
     }
 
+    /**
+     * @param string $uriString
+     * @return $this
+     * @throws Exception
+     */
     public function get(string $uriString) : Router
     {
         $route = end($this->routes);
+        if($route === false)
+            throw new Exception("Unable to set array pointer to last element");
+
         $route->setRequestMethod('GET');
         $route->setUri($uriString);
 
         return $this;
     }
 
+    /**
+     * @param string $uriString
+     * @return $this
+     * @throws Exception
+     */
     public function post(string $uriString) : Router
     {
         $route = end($this->routes);
+        if($route === false)
+            throw new Exception("Unable to set array pointer to last element");
+
         $route->setRequestMethod('POST');
         $route->setUri($uriString);
         $route->setBlocking(true);
@@ -112,25 +129,48 @@ class Router
         return $this;
     }
 
+    /**
+     * @return $this
+     * @throws Exception
+     */
     public function block(): Router
     {
         $route = end($this->routes);
+        if($route === false)
+            throw new Exception("Unable to set array pointer to last element");
+
         $route->setBlocking(true);
 
         return $this;
     }
 
+    /**
+     * @param string $controllerString
+     * @return $this
+     * @throws Exception
+     */
     public function controller(string $controllerString) : Router
     {
         $route = end($this->routes);
+        if($route === false)
+            throw new Exception("Unable to set array pointer to last element");
+
         $route->setController($controllerString);
 
         return $this;
     }
 
+    /**
+     * @param string $methodString
+     * @return $this
+     * @throws Exception
+     */
     public function method(string $methodString) : Router
     {
         $route = end($this->routes);
+        if($route === false)
+            throw new Exception("Unable to set array pointer to last element");
+
         $route->setMethod($methodString);
 
         return $this;
@@ -139,18 +179,30 @@ class Router
     /**
      * @param array<string> $middleware
      * @return $this
+     * @throws Exception
      */
     public function middleware(array $middleware) : Router
     {
         $route = end($this->routes);
+        if($route === false)
+            throw new Exception("Unable to set array pointer to last element");
+
         $route->setMiddleware($middleware);
 
         return $this;
     }
 
+    /**
+     * @param string $formDataValidatorString
+     * @return $this
+     * @throws Exception
+     */
     public function formDataValidator(string $formDataValidatorString) : Router
     {
         $route = end($this->routes);
+        if($route === false)
+            throw new Exception("Unable to set array pointer to last element");
+
         $route->setFormDataValidator($formDataValidatorString);
 
         return $this;

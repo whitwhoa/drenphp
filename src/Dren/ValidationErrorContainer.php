@@ -3,6 +3,8 @@ declare(strict_types=1);
 
 namespace Dren;
 
+use Exception;
+
 class ValidationErrorContainer
 {
     /** @var array<string, array<string>> */
@@ -55,7 +57,12 @@ class ValidationErrorContainer
         if(count($errorArray) == 0)
             return '';
 
-        return $this->get($key)[0];
+        $message = $this->get($key)[0];
+
+        if(is_array($message))
+            return $message[0];
+        else
+            return $message;
     }
 
     /**
@@ -101,6 +108,7 @@ class ValidationErrorContainer
      * @param string $pattern
      * @param string $input
      * @return bool
+     * @throws Exception
      */
     private function isFieldArrayPattern(string $pattern, string $input) : bool
     {
@@ -110,7 +118,11 @@ class ValidationErrorContainer
         // Create the regex pattern by adding start and end delimiters
         $pattern = '/^' . $pattern . '$/';
 
-        return preg_match($pattern, $input);
+        $matchResult = preg_match($pattern, $input);
+        if($matchResult === false)
+            throw new Exception("Unable to match provided regex pattern");
+
+        return (bool)$matchResult;
     }
 
 }

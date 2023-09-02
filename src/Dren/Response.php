@@ -45,13 +45,23 @@ class Response
     /**
      * @param array<mixed>|string $body
      * @return $this
+     * @throws Exception
      */
     public function json(array|string $body) : Response
     {
         if(is_array($body))
-            $this->body = json_encode($body);
+        {
+            $encodedBody = json_encode($body);
+            if($encodedBody === false)
+                throw new Exception("Unable to encode body data");
+
+            $this->body = $encodedBody;
+        }
         else
+        {
             $this->body = $body;
+        }
+
 
         $this->type = 'application/json';
         return $this;

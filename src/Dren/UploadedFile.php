@@ -26,6 +26,7 @@ class UploadedFile
      * @param string $tp
      * @param int $ec
      * @param int $s
+     * @throws Exception
      */
     public function __construct(array $am, string $fn, string $cn, string $cm, string $tp, int $ec, int $s)
     {
@@ -56,7 +57,15 @@ class UploadedFile
         if($this->errorMessage !== '')
             return;
 
-        $this->serverMime = finfo_file(finfo_open(FILEINFO_MIME_TYPE), $this->tmpPath);
+        $finfoOpened = finfo_open(FILEINFO_MIME_TYPE);
+        if($finfoOpened === false)
+            throw new Exception("Unable to open file into mime type");
+
+        $fileInfo = finfo_file($finfoOpened, $this->tmpPath);
+        if($fileInfo === false)
+            throw new Exception("Unable to open file info");
+
+        $this->serverMime = $fileInfo;
 
         if(!array_key_exists($this->serverMime, $this->allowableMimes))
         {

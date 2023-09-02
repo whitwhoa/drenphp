@@ -4,17 +4,18 @@ declare(strict_types=1);
 namespace Dren;
 
 use Exception;
+use stdClass;
 
 class RememberIdManager
 {
-    private object $config;
+    private AppConfig $config;
     private ?MySQLCon $db;
     private SecurityUtility $securityUtility;
     private Request $request;
     private ?string $rememberId;
 
 
-    public function __construct(object $appConfig, Request $request, ?MySQLCon $db, SecurityUtility $su)
+    public function __construct(AppConfig $appConfig, Request $request, ?MySQLCon $db, SecurityUtility $su)
     {
         $this->config = $appConfig;
         // We make this nullable because if we're running the framework without a database connection we'll never
@@ -96,7 +97,7 @@ class RememberIdManager
 
     /**
      *
-     * @return object
+     * @return object{account_id: int, username: string, roles: array<string>}
      * @throws Exception
      */
     public function getRememberIdAccount() : object
@@ -161,7 +162,7 @@ class RememberIdManager
                 $this->config->session->rid_web_client_name,
                 $encryptedToken,
                 [
-                    'expires' => strtotime("+1 year"),
+                    'expires' => (int)strtotime("+1 year"),
                     'path' => '/',
                     'secure' => $this->config->session->cookie_secure,
                     'httponly' => $this->config->session->cookie_httponly,  // HttpOnly flag

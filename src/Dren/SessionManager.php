@@ -9,7 +9,7 @@ use Exception;
 
 class SessionManager
 {
-    private object $config;
+    private SessionConfig $sessionConfig;
     private SecurityUtility $securityUtility;
     private ?Request $request;
     private ?string $sessionId;
@@ -19,17 +19,17 @@ class SessionManager
 
     private ?object $flashed;
 
-    public function __construct(object $appConfig, SecurityUtility $su)
+    public function __construct(AppConfig $appConfig, SecurityUtility $su)
     {
-        $this->config = $appConfig->session;
+        $this->sessionConfig = $appConfig->session;
         $this->securityUtility = $su;
         $this->sessionId = null;
         $this->request = null; // null here because we can't completely initialize until after we receive request
 
         if($appConfig->lockable_datastore_type === 'file')
         {
-            $this->tmpLockableDataStore = new FileLockableDataStore($this->config->directory);
-            $this->sessionLockableDataStore = new FileLockableDataStore($this->config->directory);
+            $this->tmpLockableDataStore = new FileLockableDataStore($this->sessionConfig->directory);
+            $this->sessionLockableDataStore = new FileLockableDataStore($this->sessionConfig->directory);
         }
         // TODO: once we implement redis functionality, that check will go here
 
@@ -87,15 +87,15 @@ class SessionManager
 
         if($this->request->getRoute()->getRouteType() === 'web')
         {
-            if($this->request->getCookie($this->config->web_client_name))
+            if($this->request->getCookie($this->sessionConfig->web_client_name))
                 $unverified_session_id = $this->securityUtility->decryptAndVerifyToken(
-                    $this->request->getCookie($this->config->web_client_name));
+                    $this->request->getCookie($this->sessionConfig->web_client_name));
         }
         elseif($this->request->getRoute()->getRouteType() === 'mobile')
         {
-            if($this->request->getHeader($this->config->mobile_client_name))
+            if($this->request->getHeader($this->sessionConfig->mobile_client_name))
                 $unverified_session_id = $this->securityUtility->decryptAndVerifyToken(
-                    $this->request->getHeader($this->config->mobile_client_name));
+                    $this->request->getHeader($this->sessionConfig->mobile_client_name));
         }
 
         // At this point, if session_id token has been provided, it has been decrypted and its signature
@@ -206,7 +206,11 @@ class SessionManager
         $this->session->reissued_at = time();
         $this->session->updated_token = $newToken;
 
-        $this->tmpLockableDataStore->overwriteContents(json_encode($this->session));
+        $encodedSessionData = json_encode($this->session);
+        if($encodedSessionData === false)
+            throw new Exception("Unable to encode session data");
+
+        $this->tmpLockableDataStore->overwriteContents($encodedSessionData);
 
         // open lock on new session token
         $this->sessionId = $newToken;
@@ -222,7 +226,11 @@ class SessionManager
         $this->session->data = $data;
 
         // write updated session to file
-        $this->sessionLockableDataStore->overwriteContents(json_encode($this->session));
+        $encodedSessionData = json_encode($this->session);
+        if($encodedSessionData === false)
+            throw new Exception("Unable to encode session data");
+
+        $this->sessionLockableDataStore->overwriteContents($encodedSessionData);
 
         // release lock on old session token
         $this->tmpLockableDataStore->closeLock();
@@ -291,6 +299,7 @@ class SessionManager
      * @param int|null $accountId
      * @param array<string> $accountRoles
      * @return string
+     * @throws Exception
      */
     private function generateNewSession(?int $accountId = null, array $accountRoles = []) : string
     {
@@ -302,9 +311,9 @@ class SessionManager
             'account_roles' => $accountRoles,
             'issued_at' => time(),
             'last_used' => time(),
-            'valid_for' => $this->config->valid_for,
-            'liminal_time' => $this->config->liminal_time,
-            'allowed_inactivity' => $this->config->allowed_inactivity,
+            'valid_for' => $this->sessionConfig->valid_for,
+            'liminal_time' => $this->sessionConfig->liminal_time,
+            'allowed_inactivity' => $this->sessionConfig->allowed_inactivity,
             'reissued_at' => null,
             'updated_token' => null,
             'csrf' => uuid_create_v4(),
@@ -336,20 +345,20 @@ class SessionManager
         if($this->request->getRoute()->getRouteType() === 'web')
         {
             setcookie(
-                $this->config->web_client_name,
+                $this->sessionConfig->web_client_name,
                 $encryptedToken,
                 [
-                    'expires' => time() + $this->config->allowed_inactivity,
+                    'expires' => time() + $this->sessionConfig->allowed_inactivity,
                     'path' => '/',
-                    'secure' => $this->config->cookie_secure,
-                    'httponly' => $this->config->cookie_httponly,  // HttpOnly flag
-                    'samesite' => $this->config->cookie_samesite  // SameSite attribute
+                    'secure' => $this->sessionConfig->cookie_secure,
+                    'httponly' => $this->sessionConfig->cookie_httponly,  // HttpOnly flag
+                    'samesite' => $this->sessionConfig->cookie_samesite  // SameSite attribute
                 ]
             );
         }
         elseif($this->request->getRoute()->getRouteType() === 'mobile')
         {
-            header($this->config->mobile_client_name . ': ' . $encryptedToken);
+            header($this->sessionConfig->mobile_client_name . ': ' . $encryptedToken);
         }
     }
 
@@ -358,20 +367,20 @@ class SessionManager
         if($this->request->getRoute()->getRouteType() === 'web')
         {
             setcookie(
-                $this->config->web_client_name,
+                $this->sessionConfig->web_client_name,
                 '',
                 [
                     'expires' => time() - 3600,
                     'path' => '/',
-                    'secure' => $this->config->cookie_secure,
-                    'httponly' => $this->config->cookie_httponly,  // HttpOnly flag
-                    'samesite' => $this->config->cookie_samesite  // SameSite attribute
+                    'secure' => $this->sessionConfig->cookie_secure,
+                    'httponly' => $this->sessionConfig->cookie_httponly,  // HttpOnly flag
+                    'samesite' => $this->sessionConfig->cookie_samesite  // SameSite attribute
                 ]
             );
         }
         elseif($this->request->getRoute()->getRouteType() === 'mobile')
         {
-            header($this->config->mobile_client_name . ': ' . 'REMOVE');
+            header($this->sessionConfig->mobile_client_name . ': ' . 'REMOVE');
         }
     }
 

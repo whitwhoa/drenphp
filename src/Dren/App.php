@@ -14,7 +14,7 @@ class App
 {
     private static ?App $instance = null;
     private string $privateDir;
-    private object $config;
+    private AppConfig $config;
     private SecurityUtility $securityUtility;
     private ?MysqlConnectionManager $dbConMan; // MySQLConnectionManager
     private ?Request $request;
@@ -76,7 +76,8 @@ class App
         // if we throw exception here...really bad things have happened
 
         $this->privateDir = $privateDir;
-        $this->config = (require_once $privateDir . '/config.php');
+        //$this->config = (require_once $privateDir . '/config.php');
+        $this->config = new AppConfig(require_once $privateDir . '/config.php');
         Logger::init($this->privateDir . $logFile);
 
         $this->securityUtility = new SecurityUtility($this->config->encryption_key);
@@ -273,7 +274,7 @@ class App
         return $this->privateDir;
     }
 
-    public function getConfig() : object
+    public function getConfig() : AppConfig
     {
         return $this->config;
     }

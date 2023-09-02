@@ -8,13 +8,14 @@ use Dren\FileLockableDataStore;
 use Dren\Job;
 use Dren\LockableDataStore;
 use Dren\Logger;
+use Dren\QueueConfig;
 use Exception;
 
 class WorkerProcessManager extends Job
 {
     use SequentialJob;
 
-    private object $queueConfig;
+    private QueueConfig $queueConfig;
     private LockableDataStore $lockableDataStore;
     private ?string $dataStoreId;
     private string $workerScript;
@@ -23,7 +24,10 @@ class WorkerProcessManager extends Job
     {
         parent::__construct($data);
 
-        if(App::get()->getConfig()->queue->lockable_datastore_type === 'file')
+        $this->queueConfig = App::get()->getConfig()->queue;
+        $this->workerScript = App::get()->getPrivateDir() . '/worker';
+
+        if($this->queueConfig->lockable_datastore_type === 'file')
         {
             $this->dataStoreId = 'data.json';
             $this->lockableDataStore = new FileLockableDataStore(App::get()->getPrivateDir() . '/storage/system/queue');
@@ -41,8 +45,7 @@ class WorkerProcessManager extends Job
             $this->dataStoreId = null; // This is only used to initialize the member to some value, we never use it as null
             // TODO: addtional LockableDataStore functionality should be implemented here, for example when we add redis support
         }
-        $this->queueConfig = App::get()->getConfig()->queue;
-        $this->workerScript = App::get()->getPrivateDir() . '/worker';
+
     }
 
     function __destruct()
@@ -75,9 +78,12 @@ class WorkerProcessManager extends Job
             }
 
             if(
+                //TODO: will come back to this when we figure out how we're going to not kill jobs that are legit and
+                // running whenever the max process time has been reached
                 ((time() - $j->start_time) >= $this->queueConfig->queue_worker_lifetime)
-                ||
-                ($j->last_memory_usage > $this->queueConfig->mem_before_restart)
+//                ((time() - $j->start_time) >= $this->queueConfig->queue_worker_lifetime)
+//                ||
+//                ($j->last_memory_usage > $this->queueConfig->mem_before_restart)
             ){
                 $this->killProcess($j->pid);
                 unset($data[$index]);
@@ -108,7 +114,11 @@ class WorkerProcessManager extends Job
         // into an object of objects
         $data = array_values($data);
 
-        $this->lockableDataStore->overwriteContentsUnsafe($this->dataStoreId, json_encode($data));
+        $encodedData = json_encode($data);
+        if($encodedData === false)
+            throw new Exception("Unable to encode data");
+
+        $this->lockableDataStore->overwriteContentsUnsafe($this->dataStoreId, $encodedData);
     }
 
     private function isProcessRunning(int $pid) : bool

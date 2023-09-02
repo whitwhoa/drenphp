@@ -4,6 +4,7 @@ declare(strict_types=1);
 namespace Dren\Jobs;
 
 use Dren\App;
+use Dren\AppConfig;
 use Dren\FileLockableDataStore;
 use Dren\Job;
 use Dren\LockableDataStore;
@@ -45,24 +46,21 @@ abstract class JobScheduler extends Job
     private string $privateDir;
     private LockableDataStore $lockableDataStore;
     private JobDAO $jobDao;
-    private object $appConfig;
+    private AppConfig $appConfig;
 
     function __construct(mixed $data = null)
     {
         parent::__construct($data);
 
-        $this->scheduleData = [];
+        $this->appConfig = App::get()->getConfig();
         $this->privateDir = App::get()->getPrivateDir();
+        $this->scheduleData = [];
 
-        if(App::get()->getConfig()->jobs_lockable_datastore_type === 'file')
-            $this->lockableDataStore = new FileLockableDataStore(App::get()->getPrivateDir() . '/storage/system/locks/jobs');
-
+        if($this->appConfig->jobs_lockable_datastore_type === 'file')
+            $this->lockableDataStore = new FileLockableDataStore($this->privateDir . '/storage/system/locks/jobs');
 
         $this->jobDao = new JobDAO();
-
         $this->trackExecution = false;
-
-        $this->appConfig = App::get()->getConfig();
     }
 
     public function preCondition(): bool
@@ -142,9 +140,15 @@ abstract class JobScheduler extends Job
         }
     }
 
+    /**
+     * @throws Exception
+     */
     private function encodeForCLI(mixed $data) : string
     {
         $json = json_encode($data);
+        if($json === false)
+            throw new Exception('Unable to encode data');
+
         return escapeshellarg($json);
     }
 

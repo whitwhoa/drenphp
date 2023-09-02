@@ -1,0 +1,51 @@
+<?php
+
+namespace Dren;
+
+class AppConfig
+{
+    public string $app_name;
+    public bool $display_errors;
+    public string $encryption_key;
+    public string $lockable_datastore_type;
+    public string $jobs_lockable_datastore_type;
+    public string $ip_param_name;
+    public SessionConfig $session;
+    public QueueConfig $queue;
+
+    /** @var array<int, DatabaseConfig> */
+    public array $databases;
+
+    /** @var array<string, string>  */
+    public array $allowed_file_upload_mimes;
+
+    /** @param array<string, mixed> $untypedConfig */
+    public function __construct(array $untypedConfig)
+    {
+        foreach($untypedConfig as $k => $v)
+        {
+            if($k === 'session')
+            {
+                $this->session = new SessionConfig($v);
+                continue;
+            }
+
+            if($k === 'queue')
+            {
+                $this->queue = new QueueConfig($v);
+                continue;
+            }
+
+            if($k === 'databases')
+            {
+                $this->databases[] = new DatabaseConfig($v);
+                continue;
+            }
+
+            if(property_exists($this, $k))
+                $this->{$k} = $v;
+        }
+    }
+
+
+}

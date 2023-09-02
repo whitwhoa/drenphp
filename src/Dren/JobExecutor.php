@@ -138,12 +138,20 @@ class JobExecutor
         $this->executionId = null;
         if($this->job->shouldTrackExecution())
         {
+            $pid = getmypid();
+            if($pid === false)
+                throw new Exception('Unable to get process id');
+
+            $encodedData = json_encode($this->job->getData());
+            if($encodedData === false)
+                throw new Exception('Unable to encode data');
+
             $this->executionId = $this->jobDao->createJobExecution(
-                getmypid(),
+                $pid,
                 $this->job->getJobName(),
                 date('Y-m-d H:i:s'),
                 'RUNNING',
-                ($this->job->getData() ? json_encode($this->job->getData()) : null)
+                ($this->job->getData() ? $encodedData : null)
             );
             $this->mutex->overwriteContents((string)$this->executionId);
         }

@@ -80,10 +80,17 @@ abstract class Job implements JobExecutionTypeInterface
         return end($parts);
     }
 
+    /**
+     * @throws Exception
+     */
     public function queue() : ?int
     {
+        $encodedData = json_encode($this->data);
+        if($encodedData === false)
+            throw new Exception('Unable to encode data');
+
         return $this->jobDao->createJobQueue($this->getClassNameOnly(),
-            json_encode($this->data), rand(1, $this->queueWorkers));
+            $encodedData, rand(1, $this->queueWorkers));
     }
 
 }

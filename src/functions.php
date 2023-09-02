@@ -40,15 +40,29 @@ function formatPhone(string $phone=null) : ?string
  *
  * @param string $date
  * @return string
+ * @throws Exception
  */
 function simpleDateFormat(string $date) : string
 {
-    return date('m/d/Y', strtotime($date));
+    $time = strtotime($date);
+    if($time === false)
+        throw new Exception("Unable to convert provided string into time");
+
+    return date('m/d/Y', $time);
 }
 
+/**
+ * @param string $date
+ * @return string
+ * @throws Exception
+ */
 function simpleTimeFormat(string $date) : string
 {
-    return date('h:i a', strtotime($date));
+    $time = strtotime($date);
+    if($time === false)
+        throw new Exception("Unable to convert provided string into time");
+
+    return date('h:i a', $time);
 }
 
 /**
@@ -67,11 +81,19 @@ function dad(mixed $var) : void
  * Generate and return a valid guid v4
  *
  * @return string
+ * @throws Exception
  */
 function uuid_create_v4() : string
 {
+    // supporting this for dev on windows...gross
     if (function_exists('com_create_guid') === true)
-        return trim(com_create_guid(), '{}');
+    {
+        $comGuid = com_create_guid();
+        if($comGuid === false)
+            throw new Exception("Unable to create guid using com_create_guid()");
+
+        return trim($comGuid, '{}');
+    }
 
     $data = openssl_random_pseudo_bytes(16);
     $data[6] = chr(ord($data[6]) & 0x0f | 0x40); // set version to 0100
@@ -156,10 +178,15 @@ function start_section() : bool
  * Alias for ob_get_clean() that makes better sense for view files
  *
  * @return string
+ * @throws Exception
  */
 function end_section() : string
 {
-    return ob_get_clean();
+    $outputBufferContents = ob_get_clean();
+    if($outputBufferContents === false)
+        throw new Exception("Unable to obtain contents of output buffer");
+
+    return $outputBufferContents;
 }
 
 /**

@@ -17,7 +17,7 @@ use Exception;
 class MysqlConnectionManager
 {
 
-    /** @var array<array{host: string, user: string, pass: string, db: string}> */
+    /** @var array<DatabaseConfig> */
     private array $config;
 
     /** @var array<MySQLCon> */
@@ -25,7 +25,7 @@ class MysqlConnectionManager
 
 
     /**
-     * @param array<array{host: string, user: string, pass: string, db: string}> $databaseConfig
+     * @param array<DatabaseConfig> $databaseConfig
      */
     public function __construct(array $databaseConfig)
     {
@@ -43,7 +43,7 @@ class MysqlConnectionManager
     public function get(string $dbName = null) : MySQLCon
     {
         if(!$dbName)
-            return $this->genCon($this->config[0]['db']);
+            return $this->genCon($this->config[0]->db);
         
         return $this->genCon($dbName);
     }
@@ -64,8 +64,8 @@ class MysqlConnectionManager
 
         $connectionArray = [];
         foreach($this->config as $con)
-            if($con['db'] === $db)
-                $connectionArray = [$con['host'], $con['user'], $con['pass'], $con['db']];
+            if($con->db === $db)
+                $connectionArray = [$con->host, $con->user, $con->pass, $con->db];
 
         if(count($connectionArray) == 0)
             throw new Exception('Given database name does not exist within configuration file');
