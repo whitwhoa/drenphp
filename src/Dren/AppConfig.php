@@ -38,7 +38,9 @@ class AppConfig
 
             if($k === 'databases')
             {
-                $this->databases[] = new DatabaseConfig($v);
+                foreach($v as $dbConf)
+                    $this->databases[] = new DatabaseConfig($dbConf);
+
                 continue;
             }
 

@@ -15,9 +15,10 @@ class SessionManager
     private ?string $sessionId;
     private ?LockableDataStore $tmpLockableDataStore;
     private ?LockableDataStore $sessionLockableDataStore;
-    private ?object $session;
+    private ?Session $session;
 
-    private ?object $flashed;
+    /** @var array<string, mixed> */
+    private ?array $flashed;
 
     public function __construct(AppConfig $appConfig, SecurityUtility $su)
     {
@@ -119,10 +120,14 @@ class SessionManager
         // NOW BLOCKING ON PROVIDED SESSION ID
 
         // If we've made it here, the lockable data store exists, so let's load it's content into memory
-        $this->session = json_decode($this->tmpLockableDataStore->getContents());
+
+        //TODO: clean me
+        //dad($this->tmpLockableDataStore->getContents());
+
+        $this->session = Session::generateFromJson($this->tmpLockableDataStore->getContents());
 
         // Has session token expired?
-        if(((int)$this->session->issued_at + (int)$this->session->valid_for) > time())
+        if(($this->session->issuedAt + $this->session->validFor) > time())
         {
             // Token still valid
 
@@ -145,13 +150,13 @@ class SessionManager
         // If reissued_at is not null, then the current token is a token which has previously been reissued, which
         // we can take to mean that there were multiple concurrent requests in flight during the re-issuance process,
         // or that the connection was lost before the client could receive the new token.
-        if($this->session->reissued_at !== null)
+        if($this->session->reissuedAt !== null)
         {
             // Check if this token is still within its liminal state. If it is not, then this token has expired, and
             // we want to set the token to null and treat this as a request which did not supply a token. If it is,
             // then we set this session_id equal to the updated_token value, release the lock on the expired token file
             // and obtain a lock for the updated_token
-            if(((int)$this->session->reissued_at + (int)$this->session->liminal_time) < time())
+            if(($this->session->reissuedAt + $this->session->liminalTime) < time())
             {
                 // invalid
                 $this->session = null;
@@ -160,11 +165,11 @@ class SessionManager
                 return;
             }
 
-            $this->sessionId = $this->session->updated_token;
+            $this->sessionId = $this->session->updatedToken;
             if(!$this->sessionLockableDataStore->openLockIfExists($this->sessionId))
                 throw new Exception('Unable to open session lock for token. This should never happen.');
 
-            $this->session = json_decode($this->sessionLockableDataStore->getContents());
+            $this->session = Session::generateFromJson($this->sessionLockableDataStore->getContents());
 
             $this->tmpLockableDataStore->closeLock();
 
@@ -181,7 +186,7 @@ class SessionManager
         // If we've made it here, then the token has expired, and has not been previously re-issued while still being
         // within it's liminal state. We must check to verify that the token is still valid for re-issuance (based off
         // of inactivity). If it is not, we treat the request as though no session token was provided...
-        if((time() - $this->session->last_used) > $this->session->allowed_inactivity)
+        if((time() - $this->session->lastUsed) > $this->session->allowedInactivity)
         {
             // not valid for re-issuance
             $this->session = null;
@@ -198,39 +203,31 @@ class SessionManager
         // response
         $newToken = $this->generateNewSession();
 
-        $account_id = $this->session->account_id;
-        $account_roles = $this->session->account_roles;
-        $flash_data = $this->session->flash_data;
+        $account_id = $this->session->accountId;
+        $account_roles = $this->session->accountRoles;
+        $flash_data = $this->session->flashData;
         $data = $this->session->data;
 
-        $this->session->reissued_at = time();
-        $this->session->updated_token = $newToken;
+        $this->session->reissuedAt = time();
+        $this->session->updatedToken = $newToken;
 
-        $encodedSessionData = json_encode($this->session);
-        if($encodedSessionData === false)
-            throw new Exception("Unable to encode session data");
-
-        $this->tmpLockableDataStore->overwriteContents($encodedSessionData);
+        $this->tmpLockableDataStore->overwriteContents($this->session->toJson());
 
         // open lock on new session token
         $this->sessionId = $newToken;
         if(!$this->sessionLockableDataStore->openLockIfExists($this->sessionId))
             throw new Exception('Unable to open session lock for token. This should never happen.');
 
-        $this->session = json_decode($this->sessionLockableDataStore->getContents());
+        $this->session = Session::generateFromJson($this->sessionLockableDataStore->getContents());
 
         // update required parameters
-        $this->session->account_id = $account_id;
-        $this->session->account_roles = $account_roles;
-        $this->session->flash_data = $flash_data;
+        $this->session->accountId = $account_id;
+        $this->session->accountRoles = $account_roles;
+        $this->session->flashData = $flash_data;
         $this->session->data = $data;
 
         // write updated session to file
-        $encodedSessionData = json_encode($this->session);
-        if($encodedSessionData === false)
-            throw new Exception("Unable to encode session data");
-
-        $this->sessionLockableDataStore->overwriteContents($encodedSessionData);
+        $this->sessionLockableDataStore->overwriteContents($this->session->toJson());
 
         // release lock on old session token
         $this->tmpLockableDataStore->closeLock();
@@ -246,8 +243,8 @@ class SessionManager
 
     private function loadFlashed() : void
     {
-        $this->flashed = $this->session->flash_data;
-        $this->session->flash_data = (object)[];
+        $this->flashed = $this->session->flashData;
+        $this->session->flashData = [];
     }
 
     /**
@@ -265,13 +262,13 @@ class SessionManager
 
         $newToken = $this->generateNewSession();
 
-        $flashData = $this->session->flash_data;
+        $flashData = $this->session->flashData;
         $data = $this->session->data;
 
-        $this->session->reissued_at = time();
-        $this->session->updated_token = $newToken;
+        $this->session->reissuedAt = time();
+        $this->session->updatedToken = $newToken;
 
-        $this->sessionLockableDataStore->overwriteContents(json_encode($this->session));
+        $this->sessionLockableDataStore->overwriteContents($this->session->toJson());
 
         // copy the ownership of the existing sessionLockableDataStore file pointer to tmpLockableDataStore
         // so that we can clear the lock later
@@ -280,14 +277,15 @@ class SessionManager
         $this->sessionId = $newToken;
         if(!$this->sessionLockableDataStore->openLockIfExists($this->sessionId))
             throw new Exception('Unable to open session lock for token. This should never happen.');
-        $this->session = json_decode($this->sessionLockableDataStore->getContents());
 
-        $this->session->account_id = $accountId;
-        $this->session->account_roles = $roles;
-        $this->session->flash_data = $flashData;
+        $this->session = Session::generateFromJson($this->sessionLockableDataStore->getContents());
+
+        $this->session->accountId = $accountId;
+        $this->session->accountRoles = $roles;
+        $this->session->flashData = $flashData;
         $this->session->data = $data;
 
-        $this->sessionLockableDataStore->overwriteContents(json_encode($this->session));
+        $this->sessionLockableDataStore->overwriteContents($this->session->toJson());
         $this->tmpLockableDataStore->closeLock();
         $this->setClientSessionId();
     }
@@ -306,22 +304,9 @@ class SessionManager
         // Generate the new signed session_id token
         $token = $this->securityUtility->generateSignedToken();
 
-        $sessionInfo = (object)[
-            'account_id' => $accountId,
-            'account_roles' => $accountRoles,
-            'issued_at' => time(),
-            'last_used' => time(),
-            'valid_for' => $this->sessionConfig->valid_for,
-            'liminal_time' => $this->sessionConfig->liminal_time,
-            'allowed_inactivity' => $this->sessionConfig->allowed_inactivity,
-            'reissued_at' => null,
-            'updated_token' => null,
-            'csrf' => uuid_create_v4(),
-            'flash_data' => (object)[],
-            'data' => (object)[]
-        ];
+        $session = Session::generateNewSession($accountId, $accountRoles);
 
-        $this->sessionLockableDataStore->overwriteContentsUnsafe($token, json_encode($sessionInfo));
+        $this->sessionLockableDataStore->overwriteContentsUnsafe($token, $session->toJson());
 
         // We return the token here so that the calling function can dictate what we do with it, since logic differs
         // between strictly new first time generations, and updates, on updates we have to modify the data with the
@@ -336,6 +321,7 @@ class SessionManager
      * Encrypts token value and adds either set cookie header or custom header based on what type of route this is
      *
      * @return void
+     * @throws Exception
      */
     private function setClientSessionId() : void
     {
@@ -407,7 +393,7 @@ class SessionManager
         if(!$this->sessionLockableDataStore->openLockIfExists($this->sessionId))
             throw new Exception('Unable to open session lock for token. This should never happen.');
 
-        $this->session = json_decode($this->sessionLockableDataStore->getContents());
+        $this->session = Session::generateFromJson($this->sessionLockableDataStore->getContents());
 
         // new sessions should always block because we don't know what could be writing to them, and they need to be
         // persisted at the end of the request. Leaving this here for the time being, will come back and remove
@@ -425,8 +411,8 @@ class SessionManager
      */
     private function terminate() : void
     {
-        $this->session->last_used = time();
-        $this->sessionLockableDataStore->overwriteContents(json_encode($this->session));
+        $this->session->lastUsed = time();
+        $this->sessionLockableDataStore->overwriteContents($this->session->toJson());
         $this->sessionLockableDataStore->closeLock();
     }
 
@@ -448,38 +434,47 @@ class SessionManager
         $this->terminate();
     }
 
+    /**
+     * @throws Exception
+     */
     public function saveFlash(string $key, mixed $data) : void
     {
         if(!$this->sessionId)
             $this->startNewSession();
 
-        $this->session->flash_data->{$key} = $data;
+        $this->session->flashData[$key] = $data;
     }
 
     public function getFlash(string $key) : mixed
     {
-        if(!$this->sessionId || !isset($this->flashed->{$key}))
+        if(!$this->sessionId || !isset($this->flashed[$key]))
             return null;
 
-        return $this->flashed->{$key};
+        return $this->flashed[$key];
     }
 
+    /**
+     * @throws Exception
+     */
     public function saveData(string $key, mixed $data) : void
     {
         if(!$this->sessionId)
             $this->startNewSession();
 
-        $this->session->data->{$key} = $data;
+        $this->session->data[$key] = $data;
     }
 
     public function getData(string $key) : mixed
     {
-        if(!$this->sessionId || !isset($this->session->data->{$key}))
+        if(!$this->sessionId || !isset($this->session->data[$key]))
             return null;
 
-        return $this->session->data->{$key};
+        return $this->session->data[$key];
     }
 
+    /**
+     * @throws Exception
+     */
     public function getCsrf() : string
     {
         if(!$this->sessionId)
@@ -493,7 +488,7 @@ class SessionManager
         if(!$this->sessionId)
             return false;
 
-        if(!$this->session->account_id)
+        if(!$this->session->accountId)
             return false;
 
         return true;
@@ -501,10 +496,10 @@ class SessionManager
 
     public function getAccountId() : ?int
     {
-        if(!$this->session->account_id)
+        if(!$this->session->accountId)
             return null;
 
-        return $this->session->account_id;
+        return $this->session->accountId;
     }
 
     public function getSessionId() : ?string

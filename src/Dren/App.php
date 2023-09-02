@@ -70,13 +70,7 @@ class App
      */
     private function __construct(string $privateDir, string $logFile)
     {
-        //TODO: I suppose we need a try catch here so we can display a super generic omg message to the user
-        // since if something errors here, we can't proceed into the actual execution of the app where we would
-        // be catching http error code exceptions and returning valid views based off of those...essentially...
-        // if we throw exception here...really bad things have happened
-
         $this->privateDir = $privateDir;
-        //$this->config = (require_once $privateDir . '/config.php');
         $this->config = new AppConfig(require_once $privateDir . '/config.php');
         Logger::init($this->privateDir . $logFile);
 
@@ -88,11 +82,16 @@ class App
         $this->dbConMan = null;
         if(isset($this->config->databases) && count($this->config->databases) > 0)
             $this->dbConMan = new MysqlConnectionManager($this->config->databases);
+
         $this->ipLock = null;
         $this->ridLock = null;
         $this->rememberIdManager = null;
     }
 
+    /**
+     * @return void
+     * @throws Exception
+     */
     private function _httpConstructor() : void
     {
         $this->request = new Request($this->config->allowed_file_upload_mimes, $this->config->ip_param_name);
