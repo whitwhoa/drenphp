@@ -4,9 +4,10 @@ declare(strict_types=1);
 namespace Dren\Jobs;
 
 use Dren\App;
-use Dren\AppConfig;
+use Dren\Configs\AppConfig;
 use Dren\FileLockableDataStore;
 use Dren\Job;
+use Dren\Jobs\ExecutionTypes\SequentialJob;
 use Dren\LockableDataStore;
 use Dren\DAOs\JobDAO;
 use Exception;

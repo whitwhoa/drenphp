@@ -2,6 +2,7 @@
 
 namespace Dren;
 
+use Dren\Configs\SessionConfig;
 use Exception;
 
 class Session

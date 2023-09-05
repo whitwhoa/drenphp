@@ -3,8 +3,8 @@ declare(strict_types=1);
 
 namespace Dren;
 
+use Dren\Configs\AppConfig;
 use Exception;
-use stdClass;
 
 class RememberIdManager
 {

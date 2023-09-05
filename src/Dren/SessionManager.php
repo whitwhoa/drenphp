@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace Dren;
 
 
+use Dren\Configs\AppConfig;
+use Dren\Configs\SessionConfig;
 use Exception;
 
 class SessionManager

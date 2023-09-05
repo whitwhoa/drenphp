@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Dren;
 
 
+use Dren\Configs\DatabaseConfig;
 use Exception;
 
 

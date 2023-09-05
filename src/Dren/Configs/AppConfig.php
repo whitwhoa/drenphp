@@ -1,11 +1,12 @@
 <?php
 
-namespace Dren;
+namespace Dren\Configs;
 
 class AppConfig
 {
     public string $app_name;
     public bool $display_errors;
+    public string $base_url;
     public string $encryption_key;
     public string $lockable_datastore_type;
     public string $jobs_lockable_datastore_type;

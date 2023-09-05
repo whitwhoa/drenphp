@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 namespace Dren;
 
+use Dren\Configs\AppConfig;
 use Exception;
 use Dren\Exceptions\Forbidden;
 use Dren\Exceptions\NotFound;

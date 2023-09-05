@@ -3,7 +3,7 @@ declare(strict_types=1);
 
 namespace Dren;
 
-use Dren\Jobs\JobExecutionTypeInterface;
+use Dren\Jobs\ExecutionTypes\JobExecutionTypeInterface;
 use Dren\DAOs\JobDAO;
 use Exception;
 

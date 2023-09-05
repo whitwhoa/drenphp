@@ -1,7 +1,7 @@
 <?php
 declare(strict_types=1);
 
-namespace Dren\Jobs;
+namespace Dren\Jobs\ExecutionTypes;
 
 trait SequentialJob
 {

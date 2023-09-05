@@ -1,6 +1,6 @@
 <?php
 
-namespace Dren;
+namespace Dren\Configs;
 
 class DatabaseConfig
 {

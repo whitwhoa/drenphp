@@ -1,6 +1,14 @@
 <?php
 declare(strict_types=1);
 
+use Dren\Configs\AppConfig;
+
+// Helper for obtaining config via a single function
+function conf() : AppConfig
+{
+    return Dren\App::get()->getConfig();
+}
+
 /**
  * Accepts a string value
  *

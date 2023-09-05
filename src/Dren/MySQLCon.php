@@ -180,7 +180,11 @@ class MySQLCon
             if($this->pdo === null)
                 throw new Exception("PDO object is null...this will never happen");
 
-            return $this->pdo->lastInsertId();
+            // casting this as an int, since that's what we expect this value to always be. Especially since this function
+            // only works with auto_increment columns, therefore, always being some form of int. The only issue that could
+            // arise from this is if you're using an int value that exceeds the 2.whatever billion ceiling on int type size,
+            // so that's something to keep in mind
+            return (int)$this->pdo->lastInsertId();
         }
         elseif($qt === 'update' || $qt === 'delete')
         {

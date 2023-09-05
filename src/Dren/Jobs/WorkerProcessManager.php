@@ -4,11 +4,11 @@ declare(strict_types=1);
 namespace Dren\Jobs;
 
 use Dren\App;
+use Dren\Configs\QueueConfig;
 use Dren\FileLockableDataStore;
 use Dren\Job;
+use Dren\Jobs\ExecutionTypes\SequentialJob;
 use Dren\LockableDataStore;
-use Dren\Logger;
-use Dren\QueueConfig;
 use Exception;
 
 class WorkerProcessManager extends Job
@@ -74,14 +74,10 @@ class WorkerProcessManager extends Job
                 continue;
             }
 
-            if(
-                //TODO: will come back to this when we figure out how we're going to not kill jobs that are legit and
-                // running whenever the max process time has been reached
-                ((time() - $j->start_time) >= $this->queueConfig->queue_worker_lifetime)
-//                ((time() - $j->start_time) >= $this->queueConfig->queue_worker_lifetime)
-//                ||
-//                ($j->last_memory_usage > $this->queueConfig->mem_before_restart)
-            ){
+            //TODO: will come back to this when we figure out how we're going to not kill jobs that are legit and
+            // running whenever the max process time has been reached
+            if((time() - $j->start_time) >= $this->queueConfig->queue_worker_lifetime)
+            {
                 $this->killProcess($j->pid);
                 unset($data[$index]);
                 continue;
@@ -101,7 +97,7 @@ class WorkerProcessManager extends Job
             $workerInt = $workerIds[$i];
             $pid = exec("php $this->workerScript $workerInt > /dev/null & echo $!");
             $data[] = [
-                "pid" => $pid,
+                "pid" => (int)$pid,
                 "start_time" => time(),
                 "worker_id" => $workerInt
             ];
