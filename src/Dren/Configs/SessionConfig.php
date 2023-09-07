@@ -14,7 +14,6 @@ class SessionConfig
     public int $allowed_inactivity;
     public bool $use_garbage_collector;
     public int $gc_probability;
-    public int $gc_divisor;
     public bool $cookie_secure;
     public bool $cookie_httponly;
 

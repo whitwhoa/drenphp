@@ -73,6 +73,7 @@ class App
     {
         $this->privateDir = $privateDir;
         $this->config = new AppConfig(require_once $privateDir . '/config.php');
+        $this->config->private_dir = $this->privateDir;
         Logger::init($this->privateDir . $logFile);
 
         $this->securityUtility = new SecurityUtility($this->config->encryption_key);
@@ -134,12 +135,14 @@ class App
                         throw new Exception("Remember Id cannot be null");
 
                     if($this->config->lockable_datastore_type === 'file')
-                    {
                         $this->ridLock = new FileLockableDataStore($this->privateDir . '/storage/system/locks/rid');
-                        $this->ridLock->openLock($rememberId);
-                        $this->ridLock->overwriteContents((string)time());
-                    }
-                    // TODO: add additional blocks for additional LockableDataStores
+                    // TODO: add logic for additional LockableDataStores
+
+                    if($this->ridLock  === null)
+                        throw new Exception("Unable to retrieve a remember id lock");
+
+                    $this->ridLock->openLock($rememberId);
+                    $this->ridLock->overwriteContents((string)time());
 
                     $existingToken = $this->rememberIdManager->getRememberIdSession();
 
@@ -171,13 +174,17 @@ class App
             if(Router::getActiveRoute()->isBlocking() && !$this->sessionManager->getSessionId())
             {
                 if($this->config->lockable_datastore_type === 'file')
-                {
                     $this->ipLock = new FileLockableDataStore($this->privateDir . '/storage/system/locks/ip');
-                    $this->ipLock->openLock($this->request->getIp());
-                    $this->ipLock->overwriteContents((string)time());
+                // TODO: add logic for additional LockableDataStores
 
-                    $this->sessionManager->startNewSession();
-                }
+                if($this->ipLock  === null)
+                    throw new Exception("Unable to retrieve a ip lock");
+
+                $this->ipLock->openLock($this->request->getIp());
+                $this->ipLock->overwriteContents((string)time());
+
+                $this->sessionManager->startNewSession();
+
             }
 
             // Execute each middleware. If the return type is Dren\Response, send the response
@@ -232,6 +239,12 @@ class App
             $method = Router::getActiveRoute()->getMethod();
             (new $class())->$method()->send();
 
+            $this->sessionManager->finalizeSessionState();
+            $this->ipLock?->closeLock();
+
+            // Session and Lock GC
+            if($this->config->session->use_garbage_collector && (rand(1, 100) <= $this->config->session->gc_probability))
+                GC::run();
         }
         catch(Forbidden|NotFound|Unauthorized|UnprocessableEntity $e)
         {

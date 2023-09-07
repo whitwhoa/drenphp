@@ -585,6 +585,35 @@ class SessionManager
         return $this->sessionId;
     }
 
+    /**
+     * Remove session data that we know for certain are no longer being used by any clients
+     *
+     * @throws Exception
+     */
+    public function gc() : void
+    {
+        // TODO: we could just check file creation times on the os so we don't have to parse the contents,
+        // we wouldn't be able to remove re-issued tokens before their expiration time, but...like...whatever....
 
+        $sessions = $this->sessionLockableDataStore->getAllElementsInContainer();
+
+        foreach($sessions as $s)
+        {
+            $sessionData = Session::generateFromJson($this->sessionLockableDataStore->getContentsUnsafe($s));
+
+            if
+            (
+                // session token has been re-issued, and liminal time has passed, get rid of token
+                ($sessionData->reissuedAt !== null && ($sessionData->reissuedAt + $sessionData->liminalTime) < time())
+                ||
+                // if session inactivity period has been reached, get rid of token
+                ($sessionData->allowedInactivity >= (time() - $sessionData->lastUsed))
+            )
+            {
+                $this->sessionLockableDataStore->deleteUnsafeById($s);
+            }
+
+        }
+    }
 
 }

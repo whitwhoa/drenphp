@@ -8,7 +8,7 @@ namespace Dren\DAOs;
 use Dren\DAO;
 use Exception;
 
-class JobDAO extends DAO
+final class JobDAO extends DAO
 {
     /**
      * @throws Exception

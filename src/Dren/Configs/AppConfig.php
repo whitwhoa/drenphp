@@ -4,6 +4,7 @@ namespace Dren\Configs;
 
 class AppConfig
 {
+    public ?string $private_dir;
     public string $app_name;
     public bool $display_errors;
     public string $base_url;

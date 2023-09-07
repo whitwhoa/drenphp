@@ -12,15 +12,11 @@ class Response
     private string $body;
     private ?string $redirect;
     private string $type;
-    private SessionManager $sessionManager;
-    private ?LockableDataStore $ipLock;
 
     public function __construct()
     {
         $this->code = 200;
         $this->redirect = null;
-        $this->sessionManager = App::get()->getSessionManager();
-        $this->ipLock = App::get()->getIpLock();
     }
 
     public function setCode(int $httpCode) : Response
@@ -72,16 +68,11 @@ class Response
      */
     public function send() : void
     {
-        $this->sessionManager->finalizeSessionState();
-
-        if($this->ipLock)
-            $this->ipLock->closeLock();
-
         if($this->redirect)
         {
             http_response_code(302);
             header('Location: ' . $this->redirect);
-            exit;
+            return;
         }
 
         http_response_code($this->code);
