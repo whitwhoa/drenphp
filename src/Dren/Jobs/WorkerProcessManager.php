@@ -74,15 +74,6 @@ class WorkerProcessManager extends Job
                 continue;
             }
 
-            //TODO: will come back to this when we figure out how we're going to not kill jobs that are legit and
-            // running whenever the max process time has been reached
-            if((time() - $j->start_time) >= $this->queueConfig->queue_worker_lifetime)
-            {
-                $this->killProcess($j->pid);
-                unset($data[$index]);
-                continue;
-            }
-
             foreach($workerIds as $widIndex => $widValue)
                 if($widValue == $j->worker_id)
                     unset($workerIds[$widIndex]);
@@ -118,14 +109,4 @@ class WorkerProcessManager extends Job
     {
         return file_exists("/proc/$pid");
     }
-
-    private function killProcess(int $pid) : bool
-    {
-        $output = [];
-        $returnVar = null;
-        exec("kill $pid", $output, $returnVar);
-        return $returnVar === 0;
-    }
-
-
 }

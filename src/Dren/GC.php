@@ -62,9 +62,8 @@ class GC
             if($createdAt === 0)
                 throw new Exception("Unable to parse time value within remember id datastore");
 
-            if(!$gc->rememberIdLDS->idLocked($rememberId))
-                if((time() - $createdAt) >= 15)
-                    $gc->rememberIdLDS->deleteUnsafeById($rememberId);
+            if(!$gc->rememberIdLDS->idLocked($rememberId) && (time() - $createdAt) >= 15)
+                $gc->rememberIdLDS->deleteUnsafeById($rememberId);
         }
 
         foreach($gc->ipLDS->getAllElementsInContainer() as $ip)
@@ -74,9 +73,8 @@ class GC
             if($createdAt === 0)
                 throw new Exception("Unable to parse time value within ip datastore");
 
-            if(!$gc->ipLDS->idLocked($ip))
-                if((time() - $createdAt) >= 15)
-                    $gc->ipLDS->deleteUnsafeById($ip);
+            if(!$gc->ipLDS->idLocked($ip) && (time() - $createdAt) >= 15)
+                $gc->ipLDS->deleteUnsafeById($ip);
         }
 
     }

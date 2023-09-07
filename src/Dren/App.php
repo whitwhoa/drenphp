@@ -32,10 +32,7 @@ class App
     public static function initHttp(string $privateDir): ?App
     {
         if (self::$instance == null)
-        {
             self::$instance = new App($privateDir, '/storage/system/logs/application.log');
-            self::$instance->_httpConstructor();
-        }
 
         return self::$instance;
     }
@@ -90,29 +87,18 @@ class App
         $this->rememberIdManager = null;
     }
 
-    /**
-     * @return void
-     * @throws Exception
-     */
-    private function _httpConstructor() : void
-    {
-        $this->request = new Request($this->config->allowed_file_upload_mimes, $this->config->ip_param_name);
-        $this->sessionManager = new SessionManager($this->config, $this->securityUtility);
-        $this->viewCompiler = new ViewCompiler($this->privateDir, $this->sessionManager);
-
-        if(isset($this->config->databases) && count($this->config->databases) > 0)
-            $this->rememberIdManager = new RememberIdManager($this->config, $this->request, $this->getDb(), $this->securityUtility);
-    }
-
     public function executeHttp() : void
     {
-        if($this->request === null || $this->sessionManager === null || $this->viewCompiler === null)
-            die("App did not successfully initialize");
-
         try
         {
-//            if($this->request === null || $this->sessionManager === null || $this->viewCompiler === null)
-//                throw new Exception("App did not successfully initialize");
+            $this->request = new Request($this->config->allowed_file_upload_mimes, $this->config->ip_param_name);
+            $this->sessionManager = new SessionManager($this->config, $this->securityUtility);
+            $this->viewCompiler = new ViewCompiler($this->privateDir, $this->sessionManager);
+
+            if(isset($this->config->databases) && count($this->config->databases) > 0)
+                $this->rememberIdManager = new RememberIdManager($this->config, $this->request, $this->getDb(), $this->securityUtility);
+
+
 
             // Do route lookup or throw not found exception
             Router::setActiveRoute($this->request->getURI(), $this->request->getMethod());
@@ -162,7 +148,7 @@ class App
                         $this->rememberIdManager->associateSessionIdWithRememberId($sid);
                     }
 
-                    $this->ridLock?->closeLock();
+                    $this->ridLock->closeLock();
                 }
             }
 
@@ -196,6 +182,9 @@ class App
                 if(gettype($middlewareResponse) === 'object' && get_class($middlewareResponse) === 'Dren\Response')
                 {
                     $middlewareResponse->send();
+
+                    $this->finalizeRequest();
+
                     return;
                 }
             }
@@ -214,7 +203,6 @@ class App
 
                 if(!$fdv->validate())
                 {
-                    //if($this->request->expectsJson())
                     if($this->request->isAjax())
                     {
                         (new Response())->setCode(422)->json([
@@ -226,8 +214,11 @@ class App
                     {
                         $this->sessionManager->saveFlash('errors', $fdv->getErrors()->export());
                         $this->sessionManager->saveFlash('old', $this->request->getRequestData());
+
                         (new Response())->redirect($this->request->getReferrer())->send();
                     }
+
+                    $this->finalizeRequest();
 
                     return;
                 }
@@ -239,12 +230,7 @@ class App
             $method = Router::getActiveRoute()->getMethod();
             (new $class())->$method()->send();
 
-            $this->sessionManager->finalizeSessionState();
-            $this->ipLock?->closeLock();
-
-            // Session and Lock GC
-            if($this->config->session->use_garbage_collector && (rand(1, 100) <= $this->config->session->gc_probability))
-                GC::run();
+            $this->finalizeRequest();
         }
         catch(Forbidden|NotFound|Unauthorized|UnprocessableEntity $e)
         {
@@ -275,6 +261,8 @@ class App
                 (new Response())->html($this->viewCompiler->compile('errors.' . $e->getCode(),
                     ['detailedMessage' => $e->getMessage()]))->send();
             }
+
+            $this->finalizeRequest();
         }
         catch (Exception|PDOException $e)
         {
@@ -293,7 +281,25 @@ class App
                     ['detailedMessage' => 'An unexpected error was encountered while processing your request.']
                 ))->send();
             }
+
+            $this->finalizeRequest();
          }
+    }
+
+    /**
+     * @throws Exception
+     */
+    private function finalizeRequest() : void
+    {
+        $this->sessionManager?->finalizeSessionState();
+        $this->ipLock?->closeLock();
+
+        // Session and Lock GC
+        if($this->config->session->use_garbage_collector && (rand(1, 100) <= $this->config->session->gc_probability))
+        {
+            Logger::write("Running session garbage collection");
+            GC::run();
+        }
     }
 
     public function getPrivateDir() : string
