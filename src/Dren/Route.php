@@ -65,7 +65,7 @@ class Route
 
     public function setController(string $controller): void
     {
-        $this->controller = 'App\\Controllers\\' . $controller;
+        $this->controller = 'App\\Http\\Controllers\\' . $controller;
     }
 
     public function setMethod(string $method): void
@@ -81,13 +81,13 @@ class Route
     {
         foreach($middleware as $m)
         {
-            $this->middleware[] = 'App\\Middleware\\' . $m;
+            $this->middleware[] = 'App\\Http\\Middleware\\' . $m;
         }
     }
 
     public function setFormDataValidator(string $formDataValidator): void
     {
-        $this->formDataValidator = 'App\\FormDataValidators\\' . $formDataValidator;
+        $this->formDataValidator = 'App\\Http\\FormDataValidators\\' . $formDataValidator;
     }
 
     /*
