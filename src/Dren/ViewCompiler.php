@@ -14,10 +14,10 @@ class ViewCompiler
 {
     /** @var array<string, string> */
     private array $views;
-    private SessionManager $sessionManager;
+    private ?SessionManager $sessionManager;
 
 
-    public function __construct(string $privateDir, SessionManager $sessionManager)
+    public function __construct(string $privateDir, ?SessionManager $sessionManager = null)
     {
         $this->views = [];
 
@@ -67,14 +67,15 @@ class ViewCompiler
         if(array_key_exists('sessionManager', $data))
             throw new Exception('Cannot use "sessionManager" as data key for view. It is a reserved name.');
 
-        // check if sessionManager contains validation errors, if it does...instantiate a ValidationErrorContainer
-        $data['errors'] = new ValidationErrorContainer();
-        if($this->sessionManager->getFlash('errors'))
-            $data['errors']->import((array)$this->sessionManager->getFlash('errors'));
-
-        $data['old'] = $this->sessionManager->getFlash('old');
-
-        $data['sessionManager'] = $this->sessionManager; // add this so we can call getCsrf() when needed
+        if($this->sessionManager !== null)
+        {
+            // check if sessionManager contains validation errors, if it does...instantiate a ValidationErrorContainer
+            $data['errors'] = new ValidationErrorContainer();
+            if($this->sessionManager->getFlash('errors'))
+                $data['errors']->import((array)$this->sessionManager->getFlash('errors'));
+            $data['old'] = $this->sessionManager->getFlash('old');
+            $data['sessionManager'] = $this->sessionManager; // add this so we can call getCsrf() when needed
+        }
 
         extract($data);
 

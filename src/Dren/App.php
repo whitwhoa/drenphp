@@ -76,7 +76,7 @@ class App
         $this->securityUtility = new SecurityUtility($this->config->encryption_key);
         $this->request = null;
         $this->sessionManager = null;
-        $this->viewCompiler = null;
+        $this->viewCompiler = new ViewCompiler($this->privateDir);
         $this->httpClient = new HttpClient($this->privateDir . '/storage/system/httpclient');
         $this->dbConMan = null;
         if(isset($this->config->databases) && count($this->config->databases) > 0)
