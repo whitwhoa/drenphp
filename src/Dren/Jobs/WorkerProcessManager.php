@@ -23,6 +23,7 @@ class WorkerProcessManager extends Job
     function __construct(mixed $data = null)
     {
         parent::__construct($data);
+        $this->trackExecution = false;
 
         $this->queueConfig = App::get()->getConfig()->queue;
         $this->workerScript = App::get()->getPrivateDir() . '/worker';

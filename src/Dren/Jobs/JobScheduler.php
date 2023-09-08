@@ -76,7 +76,7 @@ abstract class JobScheduler extends Job
     {
         $this->cleanInterrupted();
 
-        if($this->appConfig->queue->use_worker_queue)
+        if($this->appConfig->queue->use_worker_queue && !file_exists($this->appConfig->private_dir . '/storage/system/queue/stopworkers'))
             $this->addJob('* * * * *', 'WorkerProcessManager');
 
         $this->schedule();

@@ -46,7 +46,7 @@ class GC
                 ($sessionData->reissuedAt !== null && ($sessionData->reissuedAt + $sessionData->liminalTime) < time())
                 ||
                 // if session inactivity period has been reached, get rid of token
-                ($sessionData->allowedInactivity >= (time() - $sessionData->lastUsed))
+                ((time() - $sessionData->lastUsed) >= $sessionData->allowedInactivity)
             )
             {
                 $gc->sessionLDS->deleteUnsafeById($sessionToken);
