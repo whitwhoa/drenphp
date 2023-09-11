@@ -1,6 +1,6 @@
 {
-    "name": "whitwhoa/drencrom",
-    "description": "The Drencrom PHP Framework",
+    "name": "whitwhoa/dren-framework",
+    "description": "The DrenPHP Framework",
     "license": "MIT",
     "require": {
         "php": ">=8.1.0",
