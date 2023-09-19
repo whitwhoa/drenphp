@@ -1,6 +1,6 @@
 {
-    "name": "whitwhoa/dren-framework",
-    "description": "The DrenPHP Framework",
+    "name": "whitwhoa/drenphp",
+    "description": "The Dren PHP Framework Core Application",
     "license": "MIT",
     "require": {
         "php": ">=8.1.0",

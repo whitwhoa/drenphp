@@ -86,7 +86,7 @@ class ViewCompiler
         if(isset($view_extends) && array_key_exists($view_extends, $this->views))
             include $this->views[$view_extends];
 
-        return end_section();
+        return trim(end_section());
     }
 
 }

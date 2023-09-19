@@ -10,6 +10,18 @@ function conf() : AppConfig
 }
 
 /**
+ *
+ * @param string $subViewFileName
+ * @param array<string, mixed> $data
+ * @return void
+ * @throws Exception
+ */
+function subview(string $subViewFileName, array $data = []) : void
+{
+    echo Dren\App::get()->getViewCompiler()->compile($subViewFileName, $data);
+}
+
+/**
  * Accepts a string value
  *
  * Returns a string formatted as follows:
