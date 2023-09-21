@@ -37,7 +37,6 @@ class Router
 
         self::$instance->routes[] = $r;
 
-
         return self::$instance;
     }
 
@@ -65,6 +64,30 @@ class Router
         self::$instance->routes[] = $r;
 
         return self::$instance;
+    }
+
+    /**
+     * @param array<string> $middlewareNames
+     * @param callable $cb
+     * @return void
+     */
+    public static function middlewareGroup(array $middlewareNames, callable $cb) : void
+    {
+        self::init();
+        assert(self::$instance !== null);
+
+        $routeCountBefore = count(self::$instance->routes);
+
+        $cb();
+
+        $routeCountAfter = count(self::$instance->routes);
+
+        $startIndex = 0;
+        if($routeCountBefore > 0)
+            $startIndex = $routeCountBefore - 1;
+
+        for($i = $startIndex; $i < $routeCountAfter; $i++)
+            self::$instance->routes[$i]->prependMiddleware($middlewareNames);
     }
 
     /**
@@ -206,7 +229,7 @@ class Router
         if($route === false)
             throw new Exception("Unable to set array pointer to last element");
 
-        $route->setMiddleware($middleware);
+        $route->appendMiddleware($middleware);
 
         return $this;
     }

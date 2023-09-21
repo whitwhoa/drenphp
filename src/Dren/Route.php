@@ -77,13 +77,30 @@ class Route
      * @param array<string> $middleware
      * @return void
      */
-    public function setMiddleware(array $middleware): void
+    public function appendMiddleware(array $middleware): void
     {
         foreach($middleware as $m)
         {
-            $this->middleware[] = 'App\\Http\\Middleware\\' . $m;
+            $middlewareFullPath = 'App\\Http\\Middleware\\' . $m;
+            if(!in_array($middlewareFullPath, $this->middleware))
+                $this->middleware[] = $middlewareFullPath;
         }
     }
+
+    /**
+     * @param array<string> $middleware
+     * @return void
+     */
+    public function prependMiddleware(array $middleware) : void
+    {
+        foreach(array_reverse($middleware) as $m)
+        {
+            $middlewareFullPath = 'App\\Http\\Middleware\\' . $m;
+            if(!in_array($middlewareFullPath, $this->middleware))
+                array_unshift($this->middleware, $middlewareFullPath);
+        }
+    }
+
 
     public function setFormDataValidator(string $formDataValidator): void
     {
