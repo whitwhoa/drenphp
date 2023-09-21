@@ -3,8 +3,6 @@ declare(strict_types=1);
 
 namespace Dren;
 
-use _PHPStan_7a55b7f06\Nette\Neon\Exception;
-
 abstract class FormDataValidator
 {
     abstract protected function setRules() : void;
@@ -382,10 +380,6 @@ abstract class FormDataValidator
      */
     private function required(array $params) : void
     {
-        // if a form element is listed in $this->rules, then the data that is being validated will always contain
-        // an element of that name. If an element with that name was not provided with the form submission, it's value
-        // will be null
-
         // Countable values
         if(is_array($params[1]))
         {
@@ -405,7 +399,7 @@ abstract class FormDataValidator
         }
 
         // Everything else
-        if($params[1] !== null && $params[1] !== '')
+        if($params[1] !== null && $params[1] !== '' && $params[1] !== $this->valueNotPresentToken)
             return;
 
         $this->setErrorMessage('required', $params[0], $params[0] . ' is required');
