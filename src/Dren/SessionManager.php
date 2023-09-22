@@ -131,9 +131,6 @@ class SessionManager
 
         // If we've made it here, the lockable data store exists, so let's load it's content into memory
 
-        //TODO: clean me
-        //dad($this->tmpLockableDataStore->getContents());
-
         $this->session = Session::generateFromJson($this->tmpLockableDataStore->getContents());
 
         // Has session token expired?
@@ -531,6 +528,14 @@ class SessionManager
             return null;
 
         return $this->session->data[$key];
+    }
+
+    public function hasRole(string $key) : bool
+    {
+        if(!$this->session || !in_array($key, $this->session->accountRoles, true))
+            return false;
+
+        return true;
     }
 
     /**

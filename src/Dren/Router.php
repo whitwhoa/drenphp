@@ -84,7 +84,7 @@ class Router
 
         $startIndex = 0;
         if($routeCountBefore > 0)
-            $startIndex = $routeCountBefore - 1;
+            $startIndex = $routeCountBefore;
 
         for($i = $startIndex; $i < $routeCountAfter; $i++)
             self::$instance->routes[$i]->prependMiddleware($middlewareNames);
