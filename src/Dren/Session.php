@@ -41,7 +41,7 @@ class Session
      * @return Session
      * @throws Exception
      */
-    public static function generateNewSession(?int $accountId = null, ?string $username, array $accountRoles = []) : Session
+    public static function generateNewSession(?int $accountId = null, ?string $username = null, array $accountRoles = []) : Session
     {
         $instance = new self();
         $instance->accountId = $accountId;

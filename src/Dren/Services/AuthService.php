@@ -40,10 +40,11 @@ class AuthService
      * Intended to be overridden in child class
      *
      * @param int $accountId
+     * @param string $username
      * @param array<string> $roles
      * @return void
      */
-    public function onSessionUpgrade(int $accountId, array $roles) : void {}
+    public function onSessionUpgrade(int $accountId, string $username, array $roles) : void {}
 
     /**
      *
@@ -81,9 +82,9 @@ class AuthService
             else
             {
                 $account = $this->ridManager->getRememberIdAccount();
-                $this->sm->startNewSession($account->account_id, $account->roles);
+                $this->sm->startNewSession($account->account_id, $account->username, $account->roles);
 
-                $this->onSessionUpgrade($account->account_id, $account->roles);
+                $this->onSessionUpgrade($account->account_id, $account->username, $account->roles);
 
                 $sid = $this->sm->getSessionId();
                 if($sid === null)
@@ -150,9 +151,9 @@ class AuthService
 
         $roles = $this->accountDAO->getRoles($account->id);
 
-        $this->sm->upgradeSession($account->id, $roles);
+        $this->sm->upgradeSession($account->id, $account->username, $roles);
 
-        $this->onSessionUpgrade($account->id, $roles);
+        $this->onSessionUpgrade($account->id, $account->username, $roles);
     }
 
     /**

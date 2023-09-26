@@ -276,11 +276,12 @@ class SessionManager
 
     /**
      * @param int $accountId
+     * @param string $username
      * @param array<string> $roles
      * @return void
      * @throws Exception
      */
-    public function upgradeSession(int $accountId, array $roles) : void
+    public function upgradeSession(int $accountId, string $username, array $roles) : void
     {
         if($this->request === null)
             throw new Exception("Request cannot be null");
@@ -314,6 +315,7 @@ class SessionManager
         $this->session = Session::generateFromJson($this->sessionLockableDataStore->getContents());
 
         $this->session->accountId = $accountId;
+        $this->session->username = $username;
         $this->session->accountRoles = $roles;
         $this->session->flashData = $flashData;
         $this->session->data = $data;
@@ -328,16 +330,17 @@ class SessionManager
      * set token in response data, that needs to be handled by calling function if it is required
      *
      * @param int|null $accountId
+     * @param string|null $username
      * @param array<string> $accountRoles
      * @return string
      * @throws Exception
      */
-    private function generateNewSession(?int $accountId = null, array $accountRoles = []) : string
+    private function generateNewSession(?int $accountId = null, ?string $username = null, array $accountRoles = []) : string
     {
         // Generate the new signed session_id token
         $token = $this->securityUtility->generateSignedToken();
 
-        $session = Session::generateNewSession($accountId, $accountRoles);
+        $session = Session::generateNewSession($accountId, $username, $accountRoles);
 
         $this->sessionLockableDataStore->overwriteContentsUnsafe($token, $session->toJson());
 
@@ -428,13 +431,14 @@ class SessionManager
      * the same thing...
      *
      * @param int|null $accountId
+     * @param string|null $username
      * @param array<string> $accountRoles
      * @return void
      * @throws Exception
      */
-    public function startNewSession(?int $accountId = null, array $accountRoles = []) : void
+    public function startNewSession(?int $accountId = null, ?string $username = null, array $accountRoles = []) : void
     {
-        $this->sessionId = $this->generateNewSession($accountId, $accountRoles);
+        $this->sessionId = $this->generateNewSession($accountId, $username, $accountRoles);
 
         if(!$this->sessionLockableDataStore->openLockIfExists($this->sessionId))
             throw new Exception('Unable to open session lock for token. This should never happen.');
