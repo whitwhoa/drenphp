@@ -86,6 +86,8 @@ class AuthService
 
                 $this->onSessionUpgrade($account->account_id, $account->username, $account->roles);
 
+                $this->sm->persist();
+
                 $sid = $this->sm->getSessionId();
                 if($sid === null)
                     throw new Exception("Session id cannot be null");

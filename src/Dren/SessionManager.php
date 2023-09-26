@@ -451,6 +451,10 @@ class SessionManager
         // persisted at the end of the request. Leaving this here for the time being, will come back and remove
         // at a future date.
         //$this->sessionLockableDataStore->closeLock();
+        //
+        // I'm from the future here debugging and while what I said previously is true,
+        // if a route isn't blocking, session data will not be persisted, keep that in mind
+        //
 
         $this->setClientSessionId();
     }
@@ -469,6 +473,19 @@ class SessionManager
         $this->session->lastUsed = time();
         $this->sessionLockableDataStore->overwriteContents($this->session->toJson());
         $this->sessionLockableDataStore->closeLock();
+    }
+
+    /**
+     * DANGEROUS. Don't use unless you know absolutely for sure you need to. Can cause race conditions.
+     *
+     * Provides a way to force a persist of data
+     *
+     * @return void
+     * @throws Exception
+     */
+    public function persist() : void
+    {
+        $this->sessionLockableDataStore->overwriteContents($this->session->toJson());
     }
 
     /**
