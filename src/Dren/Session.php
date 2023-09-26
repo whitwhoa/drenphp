@@ -10,6 +10,7 @@ class Session
     private SessionConfig $sessionConfig;
 
     public ?int $accountId;
+    public ?string $username;
 
     /** @var array<string> */
     public array $accountRoles;
@@ -40,10 +41,11 @@ class Session
      * @return Session
      * @throws Exception
      */
-    public static function generateNewSession(?int $accountId = null, array $accountRoles = []) : Session
+    public static function generateNewSession(?int $accountId = null, ?string $username, array $accountRoles = []) : Session
     {
         $instance = new self();
         $instance->accountId = $accountId;
+        $instance->username = $username;
         $instance->accountRoles = $accountRoles;
         $instance->issuedAt = time();
         $instance->lastUsed = time();
@@ -72,6 +74,7 @@ class Session
 
         $instance = new self();
         $instance->accountId = $data['accountId'];
+        $instance->username = $data['username'];
         $instance->accountRoles = $data['accountRoles'];
         $instance->issuedAt = $data['issuedAt'];
         $instance->lastUsed = $data['lastUsed'];
@@ -95,6 +98,7 @@ class Session
     {
         $state = [
             'accountId' => $this->accountId,
+            'username' => $this->username,
             'accountRoles' => $this->accountRoles,
             'issuedAt' => $this->issuedAt,
             'lastUsed' => $this->lastUsed,

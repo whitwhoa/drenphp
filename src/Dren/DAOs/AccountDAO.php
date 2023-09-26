@@ -12,8 +12,7 @@ class AccountDAO extends DAO
      * @throws Exception
      * @param array<string> $roles
      */
-    public function createNewAccount(string $username, string $password, string $ip,
-                                     array $roles = [], ?callable $callbackFunction = null) : int
+    public function createNewAccount(string $username, string $password, string $ip, array $roles = []) : int
     {
         try
         {
@@ -51,12 +50,6 @@ class AccountDAO extends DAO
                         ->exec();
                 }
             }
-
-            // allow for optional callback in case user wants to execute additional logic pertaining to account
-            // creation (for example if they want to create "users" and tie the new account id to a "user_profiles"
-            // table)
-            if($callbackFunction !== null)
-                $callbackFunction($newAccountId, $this->db);
 
             $this->db->commitTransaction();
 

@@ -18,9 +18,6 @@ class RememberIdManager
     public function __construct(AppConfig $appConfig, Request $request, MySQLCon $db, SecurityUtility $su)
     {
         $this->config = $appConfig;
-        // We make this nullable because if we're running the framework without a database connection we'll never
-        // make it to calling anything in this class that would require a connection...and if we do, we need to
-        // puke at runtime because we shouldn't be
         $this->db = $db;
         $this->securityUtility = $su;
         $this->request = $request;
