@@ -221,6 +221,7 @@ class SessionManager
         $newToken = $this->generateNewSession();
 
         $account_id = $this->session->accountId;
+        $account_username = $this->session->username;
         $account_roles = $this->session->accountRoles;
         $flash_data = $this->session->flashData;
         $data = $this->session->data;
@@ -239,6 +240,7 @@ class SessionManager
 
         // update required parameters
         $this->session->accountId = $account_id;
+        $this->session->username = $account_username;
         $this->session->accountRoles = $account_roles;
         $this->session->flashData = $flash_data;
         $this->session->data = $data;
