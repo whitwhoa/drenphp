@@ -485,6 +485,9 @@ class SessionManager
      */
     public function persist() : void
     {
+        if(!$this->session)
+            return;
+
         $this->sessionLockableDataStore->overwriteContents($this->session->toJson());
     }
 

@@ -48,6 +48,9 @@ class AppConfig
 
             if(property_exists($this, $k))
                 $this->{$k} = $v;
+
+            //TODO: have a mixed property here for user to shove random values in
+
         }
     }
 

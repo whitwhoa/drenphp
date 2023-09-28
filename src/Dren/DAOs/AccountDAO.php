@@ -81,6 +81,16 @@ class AccountDAO extends DAO
     }
 
     /**
+     * @return \stdClass where {
+     *      int $id,
+     *      string $username,
+     *      string $password,
+     *      string $created_at,
+     *      string $updated_at,
+     *      string $last_active,
+     *      string $last_ip
+     * }
+     *
      * @throws Exception
      */
     public function getAccountByUsername(string $username) : ?object

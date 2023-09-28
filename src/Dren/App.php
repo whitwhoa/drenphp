@@ -128,6 +128,7 @@ class App
 //                $this->authService = new AuthService($this->privateDir, $this->config, $this->request,
 //                    $this->getDb(), $this->securityUtility, $this->sessionManager);
 
+                /** @phpstan-ignore-next-line */
                 $this->authService = new $this->authServiceClass($this->privateDir, $this->config, $this->request,
                     $this->getDb(), $this->securityUtility, $this->sessionManager);
 

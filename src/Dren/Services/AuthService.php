@@ -95,11 +95,16 @@ class AuthService
                 $this->ridManager->associateSessionIdWithRememberId($sid);
             }
 
-            $this->ridLock->closeLock();
+            $this->ridLock?->closeLock();
         }
     }
 
     /**
+     * @param string $username
+     * @param string $password
+     * @param string $ip
+     * @param array<string> $roles
+     * @return int
      * @throws Exception
      */
     public function createAccount(string $username, string $password, string $ip, array $roles = []) : int
