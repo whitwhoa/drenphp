@@ -75,15 +75,19 @@ class Request
 
     private function setHeaders() : void
     {
-        $this->headers = [];
-        foreach ($_SERVER as $key => $value)
-        {
-            if (str_starts_with($key, 'HTTP_'))
-            {
-                $header = str_replace(' ', '-', ucwords(str_replace('_', ' ', substr($key, 5))));
-                $this->headers[$header] = $value;
-            }
-        }
+        $this->headers = getallheaders();
+
+
+        // Why...just....why....
+//        $this->headers = [];
+//        foreach ($_SERVER as $key => $value)
+//        {
+//            if (str_starts_with($key, 'HTTP_'))
+//            {
+//                $header = str_replace(' ', '-', ucwords(str_replace('_', ' ', substr($key, 5))));
+//                $this->headers[$header] = $value;
+//            }
+//        }
     }
 
     public function getHeader(string $name) : ?string
@@ -105,6 +109,15 @@ class Request
 
     public function isAjax(): bool
     {
+        //dad(getallheaders());
+        //dad($this->headers);
+
+//        echo '<pre>';
+//        echo var_export(getallheaders(), true);
+//        echo '-------------------------------------<br/><br/>';
+//        echo var_export($_SERVER, true);
+//        echo '</pre>';
+
         return $this->getHeader('X-Requested-With') === 'XMLHttpRequest';
     }
 

@@ -231,7 +231,7 @@ class App
 
                 if(!$fdv->validate())
                 {
-                    if($this->request->isAjax())
+                    if($this->request->isAjax() || $this->request->expectsJson())
                     {
                         (new Response())->setCode(422)->json([
                             'message' => 'Unable to process request due to validation errors',
@@ -262,7 +262,7 @@ class App
         }
         catch(Forbidden|NotFound|Unauthorized|UnprocessableEntity $e)
         {
-            if($this->request->isAjax())
+            if($this->request->isAjax() || $this->request->expectsJson())
             {
                 $message = '';
                 switch ($e->getCode())
@@ -297,7 +297,7 @@ class App
             Logger::error($e->getMessage() . ":" . $e->getTraceAsString());
 
             //if($this->request->expectsJson())
-            if($this->request->isAjax())
+            if($this->request->isAjax() || $this->request->expectsJson())
             {
                 (new Response())->setCode(500)->json([
                     'message' => 'An unexpected error was encountered while processing your request.'

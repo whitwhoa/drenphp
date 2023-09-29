@@ -21,6 +21,9 @@ class AppConfig
     /** @var array<string, string>  */
     public array $allowed_file_upload_mimes;
 
+    /** @var array<string, mixed>  */
+    public array $user_defined;
+
     /** @param array<string, mixed> $untypedConfig */
     public function __construct(array $untypedConfig)
     {
@@ -48,8 +51,6 @@ class AppConfig
 
             if(property_exists($this, $k))
                 $this->{$k} = $v;
-
-            //TODO: have a mixed property here for user to shove random values in
 
         }
     }
