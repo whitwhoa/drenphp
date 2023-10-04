@@ -3,6 +3,8 @@ declare(strict_types=1);
 
 namespace Dren;
 
+use Exception;
+
 abstract class FormDataValidator
 {
     abstract protected function setRules() : void;
@@ -471,14 +473,26 @@ abstract class FormDataValidator
 
     /**
      * @param array<int, mixed> $params
-     * @throws \Exception
+     * @throws Exception
      */
     private function unique(array $params) : void
     {
-        if(!App::get()->getDb()->query("SELECT * FROM " . $params[2] . " WHERE " . $params[3] . " = ?", [$params[1]])->singleAsObj()->exec())
+        if(!App::get()->getDb()->query("SELECT '1' FROM " . $params[2] . " WHERE " . $params[3] . " = ?", [$params[1]])->singleAsObj()->exec())
             return;
 
         $this->setErrorMessage('unique', $params[0], $params[0] . ' must be unique');
+    }
+
+    /**
+     * @param array<int, mixed> $params
+     * @throws Exception
+     */
+    private function exists(array $params) : void
+    {
+        if(App::get()->getDb()->query("SELECT '1' FROM " . $params[2] . " WHERE " . $params[3] . " = ?", [$params[1]])->singleAsObj()->exec())
+            return;
+
+        $this->setErrorMessage('exists', $params[0], $params[0] . ' does not exist');
     }
 
     /**

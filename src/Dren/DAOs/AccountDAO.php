@@ -108,6 +108,55 @@ class AccountDAO extends DAO
     }
 
     /**
+     *
+     *
+     * @param string $resetToken
+     * @return string|null
+     * @throws Exception
+     */
+    public function getUsernameFromResetToken(string $resetToken) : ?string
+    {
+        $q = <<<EOT
+            SELECT username
+            FROM password_resets
+            WHERE token = ?
+        EOT;
+
+        $result = $this->db
+            ->query($q, [$resetToken])
+            ->singleAsObj()
+            ->exec();
+
+        if($result === null)
+            return null;
+
+        return $result->username;
+    }
+
+    /**
+     * @param string $token
+     * @return \stdClass where {
+     *      string $username,
+     *      string $token,
+     *      string $created_at
+     * }
+     * @throws Exception
+     */
+    public function getPasswordResetRecordByToken(string $token) : ?object
+    {
+        $q = <<<EOT
+            SELECT *
+            FROM password_resets
+            WHERE token = ?
+        EOT;
+
+        return $this->db
+            ->query($q, [$token])
+            ->singleAsObj()
+            ->exec();
+    }
+
+    /**
      * @throws Exception
      */
     public function addRole(int $accountId, string $role) : void
@@ -205,6 +254,42 @@ class AccountDAO extends DAO
             ->query("SELECT id, username FROM accounts")
             ->asObj()
             ->exec();
+    }
+
+    /**
+     *
+     *
+     * @param int $id
+     * @param string $pass
+     * @return void
+     * @throws Exception
+     */
+    public function updatePassword(int $id, string $pass) : void
+    {
+        $q = <<<EOT
+            UPDATE accounts
+            SET password = ?
+            WHERE accounts.id = ?
+        EOT;
+
+        $this->db
+            ->query($q, [$pass, $id])
+            ->exec();
+    }
+
+    /**
+     *
+     *
+     * @param string $username
+     * @param string $token
+     * @return void
+     * @throws Exception
+     */
+    public function createPasswordReset(string $username, string $token) : void
+    {
+        $this->db->query("INSERT INTO password_resets(username, token) VALUES(?,?)", [
+            $username, $token
+        ])->exec();
     }
 
 }

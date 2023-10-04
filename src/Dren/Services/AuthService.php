@@ -16,8 +16,8 @@ use Exception;
 
 class AuthService
 {
-    private string $privateDir;
-    private AppConfig $config;
+    protected string $privateDir;
+    protected AppConfig $config;
     private RememberIdManager $ridManager;
     private AccountDAO $accountDAO;
     protected SessionManager $sm;
@@ -45,6 +45,68 @@ class AuthService
      * @return void
      */
     public function onSessionUpgrade(int $accountId, string $username, array $roles) : void {}
+
+    /**
+     * Intended to be overridden in child class
+     *
+     * @param string $username
+     * @return void
+     */
+    public function forgotPassword(string $username) : void {}
+
+
+    /**
+     *
+     *
+     * @param string $resetToken
+     * @return string|null
+     * @throws Exception
+     */
+    public function getUsernameFromResetToken(string $resetToken) : ?string
+    {
+        return $this->accountDAO->getUsernameFromResetToken($resetToken);
+    }
+
+    /**
+     *
+     *
+     * @param string $username
+     * @param string $token
+     * @return void
+     * @throws Exception
+     */
+    public function createPasswordReset(string $username, string $token) : void
+    {
+        $this->accountDAO->createPasswordReset($username, $token);
+    }
+
+    /**
+     *
+     *
+     * @param int $accountId
+     * @param string $newPass
+     * @return void
+     * @throws Exception
+     */
+    public function updatePassword(int $accountId, string $newPass) : void
+    {
+        $this->accountDAO->updatePassword($accountId, password_hash($newPass, PASSWORD_DEFAULT));
+    }
+
+    /**
+     *
+     *
+     * @param string $token
+     * @return bool
+     * @throws Exception
+     */
+    public function passwordResetTokenExists(string $token) : bool
+    {
+        if($this->accountDAO->getPasswordResetRecordByToken($token) === null)
+            return false;
+
+        return true;
+    }
 
     /**
      *
