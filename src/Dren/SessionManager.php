@@ -611,9 +611,27 @@ class SessionManager
         return $this->session->accountId;
     }
 
+    /**
+     *
+     *
+     * @return string|null
+     */
     public function getSessionId() : ?string
     {
         return $this->sessionId;
+    }
+
+    /**
+     *
+     *
+     * @return int|null
+     */
+    public function getExpirationTime() : ?int
+    {
+        if($this->session === null)
+            return null;
+
+        return $this->session->lastUsed + $this->session->allowedInactivity;
     }
 
     /**

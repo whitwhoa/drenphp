@@ -111,6 +111,16 @@ class AuthService
     /**
      *
      *
+     * @return bool
+     */
+    public function hasRememberId() : bool
+    {
+        return $this->ridManager->hasRememberId();
+    }
+
+    /**
+     *
+     *
      * @return void
      * @throws Exception
      */
