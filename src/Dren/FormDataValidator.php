@@ -79,8 +79,8 @@ abstract class FormDataValidator
         $csrfRule = ['csrf' => ['#required', function(array &$requestData, ValidationErrorContainer &$errors, bool &$fenceUp){
             $fenceUp = true;
             if($this->sessionManager->getCsrf() != $requestData['csrf'])
-                //$errors->add('invalid_csrf_token', "CSRF token was invalid or not provided");
-                $errors->add('invalid_csrf_token', "Heads up! We've refreshed your session to protect your information. Just re-submit the form, and you'll be on your way. Thank you for your patience!");
+                $errors->add('csrf', "CSRF token was invalid or not provided");
+                //$errors->add('invalid_csrf_token', "Heads up! We've refreshed your session to protect your information. Just re-submit the form, and you'll be on your way. Thank you for your patience!");
 
         }]];
 
