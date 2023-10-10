@@ -62,9 +62,9 @@ class AuthService
      * @return string|null
      * @throws Exception
      */
-    public function getUsernameFromResetToken(string $resetToken) : ?string
+    public function getUsernameFromVerificationToken(string $resetToken) : ?string
     {
-        return $this->accountDAO->getUsernameFromResetToken($resetToken);
+        return $this->accountDAO->getUsernameFromVerificationToken($resetToken);
     }
 
     /**
@@ -75,9 +75,9 @@ class AuthService
      * @return void
      * @throws Exception
      */
-    public function createPasswordReset(string $username, string $token) : void
+    public function createVerificationToken(string $username, string $token) : void
     {
-        $this->accountDAO->createPasswordReset($username, $token);
+        $this->accountDAO->createVerificationToken($username, $token);
     }
 
     /**
@@ -100,9 +100,9 @@ class AuthService
      * @return bool
      * @throws Exception
      */
-    public function passwordResetTokenExists(string $token) : bool
+    public function verificationTokenExists(string $token) : bool
     {
-        if($this->accountDAO->getPasswordResetRecordByToken($token) === null)
+        if($this->accountDAO->getVerificationTokenDetails($token) === null)
             return false;
 
         return true;

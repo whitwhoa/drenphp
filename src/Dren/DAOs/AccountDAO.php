@@ -110,20 +110,20 @@ class AccountDAO extends DAO
     /**
      *
      *
-     * @param string $resetToken
+     * @param string $varToken
      * @return string|null
      * @throws Exception
      */
-    public function getUsernameFromResetToken(string $resetToken) : ?string
+    public function getUsernameFromVerificationToken(string $token) : ?string
     {
         $q = <<<EOT
             SELECT username
-            FROM password_resets
+            FROM verification_tokens
             WHERE token = ?
         EOT;
 
         $result = $this->db
-            ->query($q, [$resetToken])
+            ->query($q, [$token])
             ->singleAsObj()
             ->exec();
 
@@ -142,11 +142,11 @@ class AccountDAO extends DAO
      * }
      * @throws Exception
      */
-    public function getPasswordResetRecordByToken(string $token) : ?object
+    public function getVerificationTokenDetails(string $token) : ?object
     {
         $q = <<<EOT
             SELECT *
-            FROM password_resets
+            FROM verification_tokens
             WHERE token = ?
         EOT;
 
@@ -285,9 +285,9 @@ class AccountDAO extends DAO
      * @return void
      * @throws Exception
      */
-    public function createPasswordReset(string $username, string $token) : void
+    public function createVerificationToken(string $username, string $token) : void
     {
-        $this->db->query("INSERT INTO password_resets(username, token) VALUES(?,?)", [
+        $this->db->query("INSERT INTO verification_tokens(username, token) VALUES(?,?)", [
             $username, $token
         ])->exec();
     }
