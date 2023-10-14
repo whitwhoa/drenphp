@@ -137,49 +137,6 @@ class App
 
             $this->authService?->checkForRememberId();
 
-//            if($this->rememberIdManager !== null)
-//            {
-//                // Check for remember_id token and attempt to re-authenticate the account if one is found.
-//                $this->rememberIdManager->setRememberId();
-//
-//                if(!$this->sessionManager->getSessionId() && $this->rememberIdManager->hasRememberId())
-//                {
-//                    $rememberId = $this->rememberIdManager->getRememberId();
-//                    if($rememberId === null)
-//                        throw new Exception("Remember Id cannot be null");
-//
-//                    if($this->config->lockable_datastore_type === 'file')
-//                        $this->ridLock = new FileLockableDataStore($this->privateDir . '/storage/system/locks/rid');
-//                    // TODO: add logic for additional LockableDataStores
-//
-//                    if($this->ridLock  === null)
-//                        throw new Exception("Unable to retrieve a remember id lock");
-//
-//                    $this->ridLock->openLock($rememberId);
-//                    $this->ridLock->overwriteContents((string)time());
-//
-//                    $existingToken = $this->rememberIdManager->getRememberIdSession();
-//
-//                    if($existingToken !== null && $this->sessionManager->dataStoreExists($existingToken))
-//                    {
-//                        $this->sessionManager->useSessionId($existingToken);
-//                    }
-//                    else
-//                    {
-//                        $account = $this->rememberIdManager->getRememberIdAccount();
-//                        $this->sessionManager->startNewSession($account->account_id, $account->roles);
-//
-//                        $sid = $this->sessionManager->getSessionId();
-//                        if($sid === null)
-//                            throw new Exception("Session id cannot be null");
-//
-//                        $this->rememberIdManager->associateSessionIdWithRememberId($sid);
-//                    }
-//
-//                    $this->ridLock->closeLock();
-//                }
-//            }
-
             // TODO: If user is authenticated, and this is a blocking route, upgrade lock to user id lock? Or perhaps
             // we just don't worry about this for now?
 

@@ -292,4 +292,24 @@ class AccountDAO extends DAO
         ])->exec();
     }
 
+    /**
+     *
+     *
+     * @param string $username
+     * @return void
+     * @throws Exception
+     */
+    public function updateVerifiedAt(string $username) : void
+    {
+        $q = <<<EOT
+            UPDATE accounts
+            SET verified_at = NOW()
+            WHERE username = ?
+        EOT;
+
+        $this->db
+            ->query($q, [$username])
+            ->exec();
+    }
+
 }

@@ -13,6 +13,7 @@ use Dren\Request;
 use Dren\SecurityUtility;
 use Dren\SessionManager;
 use Exception;
+use Mailgun\Model\MailingList\PagesResponse;
 
 class AuthService
 {
@@ -53,6 +54,33 @@ class AuthService
      * @return void
      */
     public function forgotPassword(string $username) : void {}
+
+    /**
+     * Intended to be overridden in child class
+     *
+     * @param string $username
+     * @return void
+     */
+    public function initiateVerificationProcess(string $username) : void {}
+
+    /**
+     *
+     *
+     * @param string $token
+     * @return bool
+     * @throws Exception
+     */
+    public function verifyAccount(string $token) : bool
+    {
+        $username = $this->accountDAO->getUsernameFromVerificationToken($token);
+
+        if($username === null)
+            return false;
+
+        $this->accountDAO->updateVerifiedAt($username);
+
+        return true;
+    }
 
 
     /**

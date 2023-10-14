@@ -635,6 +635,17 @@ class SessionManager
     }
 
     /**
+     *
+     *
+     * @return string|null
+     */
+    public function getUsername() : ?string
+    {
+        return $this->session?->username;
+
+    }
+
+    /**
      * Remove session data that we know for certain are no longer being used by any clients
      *
      * @throws Exception
