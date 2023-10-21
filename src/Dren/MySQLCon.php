@@ -159,11 +159,11 @@ class MySQLCon
 
         $qt = strtolower(explode(' ', trim($this->query))[0]);
 
-        if(!in_array($qt, ['select', 'insert', 'update', 'delete']))
+        if(!in_array($qt, ['select', 'insert', 'update', 'delete', 'with']))
             throw new Exception('Query not a select, insert, update, delete, or unable to parse query type');
 
         // not a fan of thick case statements, this is easier to read...come at me bro
-        if($qt === 'select')
+        if($qt === 'select' || $qt === 'with')
         {
             $this->generateMysqlStatement();
             $this->generateMysqlResultset();
