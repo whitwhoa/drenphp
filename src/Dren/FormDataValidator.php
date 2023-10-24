@@ -59,6 +59,10 @@ abstract class FormDataValidator
     Validate functionality has been defaulted to exit validation for a field once the first
     failed method is hit. If you want to run every method regardless whether the
     previous method was successful, prefix 'run_all' to the method chain
+
+    TODO: This method has become a near unmaintainable monstrosity which needs to be refactored to
+        better reflect what's going on
+
     */
     public function validate() : bool
     {
@@ -93,9 +97,6 @@ abstract class FormDataValidator
 
         $this->expandFields();
 
-        //dad($this->expandedFields);
-        //dad($this->request);
-
         foreach($this->expandedFields as $ef)
         {
             // ef = [the.*.field.*.name, requestData, methodChain]
@@ -103,6 +104,68 @@ abstract class FormDataValidator
             $methodChain = $this->methodChains[$ef[2]];
             if(is_string($methodChain))
                 $methodChain = explode('|', $methodChain);
+
+
+            /*
+             * "required_with" logic. When required_with rule is present, we need to check if one of the with fields (as
+             * they are submitted as an array) is present and if it has a value, and if so, then we remove the
+             * required_with rule from the chain and continue processing the following rules. If no "with" fields are
+             * present, then we remove all validation rules and ignore the field
+             */
+            foreach($methodChain as $k => $mc)
+            {
+                if(!is_string($mc))
+                    continue;
+
+                if(str_contains($mc, 'required_with:'))
+                {
+                    $withs = explode(',', explode(':', $mc)[1]);
+
+                    foreach($withs as $fieldName)
+                    {
+                        if(array_key_exists($fieldName, $this->requestData) && $this->has_value($this->requestData[$fieldName]))
+                        {
+                            $methodChain[$k] = 'required';
+                            if(array_key_exists($ef[0] . '.required_with', $this->messages))
+                                $this->messages[$ef[0] . '.required'] = $this->messages[$ef[0] . '.required_with'];
+                            break 2;
+                        }
+                    }
+
+                    $methodChain[$k] = 'nullable';
+                }
+            }
+
+            /*
+             * "required_without" logic. Functions the same as "required_with" only when the "with" field is not present
+             */
+            foreach($methodChain as $k => $mc)
+            {
+                if(!is_string($mc))
+                    continue;
+
+                if(str_contains($mc, 'required_without:'))
+                {
+                    $withOuts = explode(',', explode(':', $mc)[1]);
+
+                    foreach($withOuts as $fieldName)
+                    {
+                        if(array_key_exists($fieldName, $this->requestData) && $this->has_value($this->requestData[$fieldName]))
+                        {
+                            $methodChain[$k] = 'nullable';
+                            break 2;
+                        }
+                    }
+
+                    $methodChain[$k] = 'required';
+
+                    if(array_key_exists($ef[0] . '.required_without', $this->messages))
+                        $this->messages[$ef[0] . '.required'] = $this->messages[$ef[0] . '.required_without'];
+                }
+            }
+
+
+
 
             /*
              *
@@ -171,6 +234,9 @@ abstract class FormDataValidator
                 }
             }
 
+            /*
+             * Insure all methods are run. By default, we stop processing methods on the chain after the first failure
+             */
             $runAll = \in_array('run_all', $methodChain);
             if($runAll)
             {
@@ -182,6 +248,8 @@ abstract class FormDataValidator
 
                 $methodChain = $updatedMethodChain;
             }
+
+
 
             foreach($methodChain as $methodChainDetails)
             {
@@ -367,6 +435,39 @@ abstract class FormDataValidator
         $this->errors->add($field, $msgToUse);
     }
 
+    /**
+     *
+     *
+     * @param mixed $var
+     * @return bool
+     */
+    private function has_value(mixed &$var) : bool
+    {
+        // Countable values
+        if
+        (
+            // if is an array, we must contain at least one element
+            (is_array($var) && count($var) === 0)
+
+            // if file upload then we must not contain any upload errors
+            || (is_object($var) && get_class($var) === 'Dren\UploadedFile' && $var->hasError())
+
+            // must be a value other than null
+            || ($var === null)
+
+            // must be a value other than empty string
+            || ($var === '')
+
+            // must be a value not equal to the valueNotPresentToken value
+            || ($var === $this->valueNotPresentToken)
+        )
+        {
+            return false;
+        }
+
+        return true;
+    }
+
     /******************************************************************************
      * Add various validation methods below this line:
      * We allow underscores in function names here due to how they are called from
@@ -384,29 +485,8 @@ abstract class FormDataValidator
      */
     private function required(array $params) : void
     {
-        // Countable values
-        if(is_array($params[1]))
-        {
-            if(count($params[1]) === 0)
-                $this->setErrorMessage('required', $params[0], $params[0] . ' is required');
-
-            return;
-        }
-
-        // File uploads
-        if(is_object($params[1]) && get_class($params[1]) === 'Dren\UploadedFile')
-        {
-            if($params[1]->hasError())
-                $this->setErrorMessage('required', $params[0], $params[0] . ' is required');
-
-            return;
-        }
-
-        // Everything else
-        if($params[1] !== null && $params[1] !== '' && $params[1] !== $this->valueNotPresentToken)
-            return;
-
-        $this->setErrorMessage('required', $params[0], $params[0] . ' is required');
+        if(!$this->has_value($params[1]))
+            $this->setErrorMessage('required', $params[0], $params[0] . ' is required');
     }
 
     /**
@@ -585,5 +665,26 @@ abstract class FormDataValidator
 
         $this->setErrorMessage('in', $params[0], $params[0] . ' must be one of the following values: ' . implode(',', $allowableValues));
     }
+
+    /**
+     * @param array<int, mixed> $params
+     */
+    private function url(array $params) : void
+    {
+        $url = $params[1];
+
+        if($url !== '' && $url !== null)
+        {
+            $isValidUrl = filter_var($url, FILTER_VALIDATE_URL);
+
+            $hasValidTld = preg_match('/\.[a-z]{2,}$/i', parse_url($url, PHP_URL_HOST));
+
+            if ($isValidUrl && str_starts_with($url, 'https://') && $hasValidTld)
+                return;
+        }
+
+        $this->setErrorMessage('url', $params[0], $params[0] . ' must be a valid URL starting with https:// and containing a top-level domain');
+    }
+
 
 }
