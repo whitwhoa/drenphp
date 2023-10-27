@@ -9,10 +9,14 @@ use Exception;
 class AccountDAO extends DAO
 {
     /**
-     * @throws Exception
+     * @param string $username
+     * @param string $password
+     * @param string|null $ip
      * @param array<string> $roles
+     * @return int
+     * @throws Exception
      */
-    public function createNewAccount(string $username, string $password, string $ip, array $roles = []) : int
+    public function createNewAccount(string $username, string $password, ?string $ip, array $roles = []) : int
     {
         try
         {
