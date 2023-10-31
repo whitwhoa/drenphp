@@ -307,7 +307,7 @@ class AccountDAO extends DAO
     {
         $q = <<<EOT
             UPDATE accounts
-            SET verified_at = NOW()
+            SET verified_at = COALESCE(verified_at, CURRENT_TIMESTAMP)
             WHERE username = ?
         EOT;
 
