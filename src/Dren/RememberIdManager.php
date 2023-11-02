@@ -120,6 +120,8 @@ class RememberIdManager
         if(!$result)
             throw new Exception("Unable to retrieve account details using remember_id token");
 
+        $this->db->query("UPDATE accounts SET last_ip = ?, last_active = NOW() WHERE id = ?", [$this->request->getIp(), $result->account_id])->exec();
+
         $result->roles = json_decode($result->roles);
 
         return $result;

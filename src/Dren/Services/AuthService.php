@@ -242,13 +242,15 @@ class AuthService
      *
      *
      * @param string $username
+     * @param string $ip
      * @param bool $remember
      * @return void
      * @throws Exception
      */
-    public function upgradeSession(string $username, bool $remember = false) : void
+    public function upgradeSession(string $username, string $ip, bool $remember = false) : void
     {
         $account = $this->accountDAO->getAccountByUsername($username);
+        $this->accountDAO->updateLastIp($account->id, $ip);
 
         if($account === null)
             throw new Exception('Account does not exist for provided username');

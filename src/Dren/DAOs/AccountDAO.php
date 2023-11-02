@@ -316,4 +316,24 @@ class AccountDAO extends DAO
             ->exec();
     }
 
+    /**
+     *
+     * @param int $uId
+     * @param string $ip
+     * @return void
+     * @throws Exception
+     */
+    public function updateLastIp(int $uId, string $ip) : void
+    {
+        $q = <<<EOT
+            UPDATE accounts
+            SET last_ip = ?, last_active = NOW()
+            WHERE id = ?
+        EOT;
+
+        $this->db
+            ->query($q, [$ip, $uId])
+            ->exec();
+    }
+
 }
