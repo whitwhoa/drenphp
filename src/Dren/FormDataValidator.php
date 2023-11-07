@@ -92,7 +92,7 @@ abstract class FormDataValidator
         $this->rules = array_merge($sessionVerificationRule, $csrfRule, $this->rules);
 
         /*********************************************************************************************
-         * END
+         * END default FormDataValidator rules
          ********************************************************************************************/
 
         $this->expandFields();
@@ -163,6 +163,9 @@ abstract class FormDataValidator
                         $this->messages[$ef[0] . '.required'] = $this->messages[$ef[0] . '.required_without'];
                 }
             }
+
+            //TODO: Need 'required_when:field,value1,value2,etc' rule so that we can express a field being required only when the value of
+            // another field is of the provided values
 
 
 
@@ -686,5 +689,157 @@ abstract class FormDataValidator
         $this->setErrorMessage('url', $params[0], $params[0] . ' must be a valid URL starting with https:// and containing a top-level domain');
     }
 
+    /**
+     * @param array<int, mixed> $params
+     */
+    private function is_date(array $params) : void
+    {
+        if(!strtotime($params[1]))
+            $this->setErrorMessage('is_date', $params[0], $params[0] . ' must be a valid date');
+    }
+
+    /**
+     * Insure date value of $params[1] is greater than date value of $params[2]
+     *
+     * if $params[2] is not a key within $this->requestData, attempt to parse it as date string and run the comparison
+     * using that value (allows user to do comparison against static date)
+     *
+     * @param array<int, mixed> $params
+     */
+    private function date_greater_than(array $params) : void
+    {
+        if(strtotime($params[1]))
+        {
+            $compVal = null;
+
+            if(!array_key_exists($params[2], $this->requestData))
+            {
+                if(strtotime($params[2]) !== false)
+                    $compVal = strtotime($params[2]);
+            }
+            else
+            {
+                if(strtotime($this->requestData[$params[2]]) !== false)
+                    $compVal = strtotime($this->requestData[$params[2]]);
+            }
+
+            if($compVal !== null)
+                if(strtotime($params[1]) > $compVal)
+                    return;
+        }
+
+        $this->setErrorMessage('date_greater_than', $params[0], $params[0] . ' must be a date greater than the date provided for: ' . $params[2]);
+    }
+
+    /**
+     *
+     *
+     * @param array $params
+     * @return void
+     */
+    private function date_less_than(array $params) : void
+    {
+        if(strtotime($params[1]))
+        {
+            $compVal = null;
+
+            if(!array_key_exists($params[2], $this->requestData))
+            {
+                if(strtotime($params[2]) !== false)
+                    $compVal = strtotime($params[2]);
+            }
+            else
+            {
+                if(strtotime($this->requestData[$params[2]]) !== false)
+                    $compVal = strtotime($this->requestData[$params[2]]);
+            }
+
+            if($compVal !== null)
+                if(strtotime($params[1]) < $compVal)
+                    return;
+        }
+
+        $this->setErrorMessage('date_less_than', $params[0], $params[0] . ' must be a date less than the date provided for: ' . $params[2]);
+    }
+
+    /**
+     *
+     * @param array<int, mixed> $params
+     */
+    private function number_greater_than(array $params) : void
+    {
+        if(is_numeric($params[1]))
+        {
+            $compVal = null;
+
+            if(!array_key_exists($params[2], $this->requestData))
+            {
+                if(is_numeric($params[2]))
+                    $compVal = $params[2];
+            }
+            else
+            {
+                if(is_numeric($this->requestData[$params[2]]))
+                    $compVal = $this->requestData[$params[2]];
+            }
+
+            if($compVal !== null)
+                if($params[1] > $compVal)
+                    return;
+        }
+
+        $this->setErrorMessage('number_greater_than', $params[0], $params[0] . ' must be a number greater than the number provided for: ' . $params[2]);
+    }
+
+    /**
+     *
+     * @param array<int, mixed> $params
+     */
+    private function number_less_than(array $params) : void
+    {
+        if(is_numeric($params[1]))
+        {
+            $compVal = null;
+
+            if(!array_key_exists($params[2], $this->requestData))
+            {
+                if(is_numeric($params[2]))
+                    $compVal = $params[2];
+            }
+            else
+            {
+                if(is_numeric($this->requestData[$params[2]]))
+                    $compVal = $this->requestData[$params[2]];
+            }
+
+            if($compVal !== null)
+                if($params[1] < $compVal)
+                    return;
+        }
+
+        $this->setErrorMessage('number_less_than', $params[0], $params[0] . ' must be a number less than the number provided for: ' . $params[2]);
+    }
+
+    /**
+     *
+     * @param mixed $v
+     * @return bool
+     */
+    private function _is_integer(mixed $v) : bool
+    {
+        if((is_numeric($v)) && (!str_contains($v, '.')) && ((float)$v == (int)$v))
+            return true;
+
+        return false;
+    }
+
+    /**
+     * @param array<int, mixed> $params
+     */
+    private function is_integer(array $params) : void
+    {
+        if(!$this->_is_integer($params[1]))
+            $this->setErrorMessage('is_integer', $params[0], $params[0] . ' must be an integer');
+    }
 
 }
