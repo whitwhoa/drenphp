@@ -84,8 +84,6 @@ abstract class FormDataValidator
             $fenceUp = true;
             if($this->sessionManager->getCsrf() != $requestData['csrf'])
                 $errors->add('csrf', "CSRF token was invalid or not provided");
-                //$errors->add('invalid_csrf_token', "Heads up! We've refreshed your session to protect your information. Just re-submit the form, and you'll be on your way. Thank you for your patience!");
-
         }]];
 
         // prepend defaults to user provided array
@@ -117,6 +115,9 @@ abstract class FormDataValidator
                 if(!is_string($mc))
                     continue;
 
+                ///////////////////////////////////////////////////////////////////////////////////
+                /// REQUIRED_WITH
+                ///////////////////////////////////////////////////////////////////////////////////
                 if(str_contains($mc, 'required_with:'))
                 {
                     $withs = explode(',', explode(':', $mc)[1]);
@@ -134,16 +135,10 @@ abstract class FormDataValidator
 
                     $methodChain[$k] = 'nullable';
                 }
-            }
 
-            /*
-             * "required_without" logic. Functions the same as "required_with" only when the "with" field is not present
-             */
-            foreach($methodChain as $k => $mc)
-            {
-                if(!is_string($mc))
-                    continue;
-
+                ///////////////////////////////////////////////////////////////////////////////////
+                /// REQUIRED_WITHOUT
+                ///////////////////////////////////////////////////////////////////////////////////
                 if(str_contains($mc, 'required_without:'))
                 {
                     $withOuts = explode(',', explode(':', $mc)[1]);
@@ -162,13 +157,28 @@ abstract class FormDataValidator
                     if(array_key_exists($ef[0] . '.required_without', $this->messages))
                         $this->messages[$ef[0] . '.required'] = $this->messages[$ef[0] . '.required_without'];
                 }
-            }
 
-            //TODO: Need 'required_when:field,value1,value2,etc' rule so that we can express a field being required only when the value of
-            // another field is of the provided values
+                ///////////////////////////////////////////////////////////////////////////////////
+                /// REQUIRED_WHEN
+                ///////////////////////////////////////////////////////////////////////////////////
+                if(str_contains($mc, 'required_when:'))
+                {
+                    $when = explode(',', explode(':', $mc)[1]);
 
+                    if(array_key_exists($when[0], $this->requestData) &&
+                        $this->has_value($this->requestData[$when[0]]) &&
+                        $this->requestData[$when[0]] == $when[1])
+                    {
+                        $methodChain[$k] = 'required';
+                        if(array_key_exists($ef[0] . '.required_when', $this->messages))
+                            $this->messages[$ef[0] . '.required'] = $this->messages[$ef[0] . '.required_when'];
+                        break;
+                    }
 
+                    $methodChain[$k] = 'nullable';
+                }
 
+            } // end of required* check loop
 
             /*
              *
@@ -772,6 +782,9 @@ abstract class FormDataValidator
         {
             $compVal = null;
 
+            //TODO: refactor to check if $params[2] contains ,* and implement functionality for checking values relative
+            // to array positions
+
             if(!array_key_exists($params[2], $this->requestData))
             {
                 if(is_numeric($params[2]))
@@ -800,6 +813,9 @@ abstract class FormDataValidator
         if(is_numeric($params[1]))
         {
             $compVal = null;
+
+            //TODO: refactor to check if $params[2] contains ,* and implement functionality for checking values relative
+            // to array positions
 
             if(!array_key_exists($params[2], $this->requestData))
             {
