@@ -170,8 +170,15 @@ abstract class FormDataValidator
                         $this->requestData[$when[0]] == $when[1])
                     {
                         $methodChain[$k] = 'required';
-                        if(array_key_exists($ef[0] . '.required_when', $this->messages))
-                            $this->messages[$ef[0] . '.required'] = $this->messages[$ef[0] . '.required_when'];
+
+                        $customMessageKey = $this->findErrorMessage($ef[0], 'required_when');
+
+                        if($customMessageKey !== null)
+                        {
+                            $updatedCustomMessageKey = str_replace('required_when', 'required', $customMessageKey);
+                            $this->messages[$updatedCustomMessageKey] = $this->messages[$customMessageKey];
+                        }
+
                         break;
                     }
 
@@ -331,6 +338,7 @@ abstract class FormDataValidator
         // each individual element is expanded into its own "field"
 
         // [the.*.field.*.name, requestData, methodChain]
+        // TODO: i don't thing that .* syntax is accurate anymore? ^^^
 
         foreach($this->rules as $field => $methodChain)
         {
@@ -361,13 +369,20 @@ abstract class FormDataValidator
         {
             $itemIndex = 0;
 
+            //Logger::debug(var_export($data, true));
+
             if($data && \is_array($data))
             {
-                foreach ($data as $item)
+                foreach ($data as $dk => $item)
                 {
-                    $path[count($path) - 1] = $itemIndex++;
+//                    $path[count($path) - 1] = $itemIndex++;
+//                    $this->expandFieldsProcessItem($item, $keys, $index, $path);
+//                    $path[count($path) - 1] = '*';
+
+                    $path[count($path) - 1] = $dk;
                     $this->expandFieldsProcessItem($item, $keys, $index, $path);
                     $path[count($path) - 1] = '*';
+
                 }
             }
             else
@@ -417,35 +432,77 @@ abstract class FormDataValidator
         }
     }
 
+    private function getElementCountFromString(string $i) : int
+    {
+        $pattern = '/\[[^\]]*\]/';
+        preg_match_all($pattern, $i, $matches);
+        return count($matches[0]);
+    }
+
+    private function extractFieldsForErrorMessageMatching($i)
+    {
+        $pattern = '/^([^\[]+)|\[(.*?)\]/';
+
+        preg_match_all($pattern, $i, $matches);
+
+        $mergedResults = array_merge($matches[1], $matches[2]);
+        $filteredResults = array_filter($mergedResults, function($value) {
+            return $value !== '';
+        });
+
+        return array_values($filteredResults);
+    }
+
+    /**
+     * return key which matches or null if no key match located
+     *
+     * @param string $field
+     * @param string $method
+     * @return string|null
+     */
+    private function findErrorMessage(string $field, string $method) : ?string
+    {
+        $extractedFields = $this->extractFieldsForErrorMessageMatching($field);
+
+        if(count($extractedFields) <= 1)
+        {
+            $key = $field . '.' . $method;
+
+            if(array_key_exists($key, $this->messages))
+                return $key;
+
+            return null;
+        }
+
+        foreach($this->messages as $k => $v)
+        {
+            $ma = explode('.', $k);
+
+            $foundMatch = true;
+            for($i = 0; $i < count($ma) - 1; $i++)
+            {
+                if(!(isset($extractedFields[$i]) && ($ma[$i] == $extractedFields[$i] || $ma[$i] === '*')))
+                {
+                    $foundMatch = false;
+                    break;
+                }
+            }
+
+            if($foundMatch && ($ma[count($ma) - 1] == $method))
+                return $k;
+        }
+
+        return null;
+    }
 
     private function setErrorMessage(string $method, string $field, string $defaultMsg) : void
     {
-        $explodedField = explode('.', $field);
+        $customMessageKey = $this->findErrorMessage($field, $method);
 
-        if(count($explodedField) > 1)
-        {
-            $key = '';
-            foreach($explodedField as $v)
-            {
-                if(is_numeric($v))
-                    $key .= '*';
-                else
-                    $key .= $v;
-
-                $key .= '.';
-            }
-            $key .= $method;
-        }
+        if($customMessageKey !== null)
+            $this->errors->add($field, $this->messages[$customMessageKey]);
         else
-        {
-            $key = $field . '.' . $method;
-        }
-
-        $msgToUse = $defaultMsg;
-        if(array_key_exists($key, $this->messages))
-            $msgToUse = $this->messages[$key];
-
-        $this->errors->add($field, $msgToUse);
+            $this->errors->add($field, $defaultMsg);
     }
 
     /**
@@ -772,6 +829,9 @@ abstract class FormDataValidator
         $this->setErrorMessage('date_less_than', $params[0], $params[0] . ' must be a date less than the date provided for: ' . $params[2]);
     }
 
+    //TODO: all other comparison functions need functionality as implemented in the number_greater_than and number_less_than functions
+    // that allows for comparing against form elements at the same array level.
+
     /**
      *
      * @param array<int, mixed> $params
@@ -782,23 +842,46 @@ abstract class FormDataValidator
         {
             $compVal = null;
 
-            //TODO: refactor to check if $params[2] contains ,* and implement functionality for checking values relative
-            // to array positions
-
-            if(!array_key_exists($params[2], $this->requestData))
+            // user provided ,* meaning they want to compare this value with the value of the element at the same array index level
+            if(isset($params[3]) && $params[3] === '*')
             {
-                if(is_numeric($params[2]))
-                    $compVal = $params[2];
+                $keys = $this->extractFieldsForErrorMessageMatching($params[0]);
+
+                $keys[count($keys) - 1] = $params[2];
+
+                $currentElement = $this->requestData;
+
+                $found = true;
+                foreach($keys as $key)
+                {
+                    if(isset($currentElement[$key]))
+                        $currentElement = $currentElement[$key];
+                    else
+                        $found = false;
+                }
+
+                if($found && $params[1] > $currentElement)
+                    return;
             }
             else
             {
-                if(is_numeric($this->requestData[$params[2]]))
-                    $compVal = $this->requestData[$params[2]];
+                if(!array_key_exists($params[2], $this->requestData))
+                {
+                    if(is_numeric($params[2]))
+                        $compVal = $params[2];
+                }
+                else
+                {
+                    if(is_numeric($this->requestData[$params[2]]))
+                        $compVal = $this->requestData[$params[2]];
+                }
+
+                if($compVal !== null)
+                    if($params[1] > $compVal)
+                        return;
             }
 
-            if($compVal !== null)
-                if($params[1] > $compVal)
-                    return;
+
         }
 
         $this->setErrorMessage('number_greater_than', $params[0], $params[0] . ' must be a number greater than the number provided for: ' . $params[2]);
@@ -814,23 +897,46 @@ abstract class FormDataValidator
         {
             $compVal = null;
 
-            //TODO: refactor to check if $params[2] contains ,* and implement functionality for checking values relative
-            // to array positions
-
-            if(!array_key_exists($params[2], $this->requestData))
+            // user provided ,* meaning they want to compare this value with the value of the element at the same array index level
+            if(isset($params[3]) && $params[3] === '*')
             {
-                if(is_numeric($params[2]))
-                    $compVal = $params[2];
+                $keys = $this->extractFieldsForErrorMessageMatching($params[0]);
+
+                $keys[count($keys) - 1] = $params[2];
+
+                $currentElement = $this->requestData;
+
+                $found = true;
+                foreach($keys as $key)
+                {
+                    if(isset($currentElement[$key]))
+                        $currentElement = $currentElement[$key];
+                    else
+                        $found = false;
+                }
+
+                if($found && $params[1] < $currentElement)
+                    return;
             }
             else
             {
-                if(is_numeric($this->requestData[$params[2]]))
-                    $compVal = $this->requestData[$params[2]];
+                if(!array_key_exists($params[2], $this->requestData))
+                {
+                    if(is_numeric($params[2]))
+                        $compVal = $params[2];
+                }
+                else
+                {
+                    if(is_numeric($this->requestData[$params[2]]))
+                        $compVal = $this->requestData[$params[2]];
+                }
+
+                if($compVal !== null)
+                    if($params[1] < $compVal)
+                        return;
             }
 
-            if($compVal !== null)
-                if($params[1] < $compVal)
-                    return;
+
         }
 
         $this->setErrorMessage('number_less_than', $params[0], $params[0] . ' must be a number less than the number provided for: ' . $params[2]);
