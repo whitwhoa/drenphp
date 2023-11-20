@@ -33,6 +33,10 @@ abstract class FormDataValidator
 
     private string $valueNotPresentToken;
 
+    protected bool $requireValidSession;
+
+    protected bool $requireCsrfToken;
+
     public function __construct(Request $request, SessionManager $sessionManager)
     {
         $this->request = $request;
@@ -48,6 +52,8 @@ abstract class FormDataValidator
         $this->expandedFields = [];
         $this->methodChains = [];
         $this->valueNotPresentToken = md5(mt_rand(1, 1000) . time());
+        $this->requireValidSession = true;
+        $this->requireCsrfToken = true;
     }
 
     public function getErrors() : ValidationErrorContainer
@@ -72,22 +78,29 @@ abstract class FormDataValidator
          * Default FormDataValidator rules
          ********************************************************************************************/
 
-        // if you're submitting a form, you had better have a session token...
-        $sessionVerificationRule = ['valid_session' => [function(array &$requestData, ValidationErrorContainer &$errors, bool &$fenceUp){
-            $fenceUp = true;
-            if(!$this->sessionManager->getSessionId())
-                $errors->add('invalid_session_token', "Session token was invalid or not provided");
-        }]];
+        if($this->requireValidSession)
+        {
+            // if you're submitting a form, you had better have a session token...
+            $sessionVerificationRule = ['valid_session' => [function(array &$requestData, ValidationErrorContainer &$errors, bool &$fenceUp){
+                $fenceUp = true;
+                if(!$this->sessionManager->getSessionId())
+                    $errors->add('invalid_session_token', "Session token was invalid or not provided");
+            }]];
 
-        // ...and a valid csrf token
-        $csrfRule = ['csrf' => ['#required', function(array &$requestData, ValidationErrorContainer &$errors, bool &$fenceUp){
-            $fenceUp = true;
-            if($this->sessionManager->getCsrf() != $requestData['csrf'])
-                $errors->add('csrf', "CSRF token was invalid or not provided");
-        }]];
+            $this->rules = array_merge($sessionVerificationRule, $this->rules);
+        }
 
-        // prepend defaults to user provided array
-        $this->rules = array_merge($sessionVerificationRule, $csrfRule, $this->rules);
+        if($this->requireCsrfToken)
+        {
+            // ...and a valid csrf token
+            $csrfRule = ['csrf' => ['#required', function(array &$requestData, ValidationErrorContainer &$errors, bool &$fenceUp){
+                $fenceUp = true;
+                if($this->sessionManager->getCsrf() != $requestData['csrf'])
+                    $errors->add('csrf', "CSRF token was invalid or not provided");
+            }]];
+
+            $this->rules = array_merge($csrfRule, $this->rules);
+        }
 
         /*********************************************************************************************
          * END default FormDataValidator rules

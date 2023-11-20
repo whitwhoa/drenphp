@@ -177,6 +177,25 @@ function normalize_string(string $in) : string
 }
 
 /**
+ * Generate a string that can be used in url as a slug
+ *
+ * @param string $in
+ * @return string
+ */
+function slugify_string(string $in) : string
+{
+    $replacedString = preg_replace("/[^a-zA-Z0-9 ]+/", "", $in);
+    if(!is_string($replacedString))
+        return '';
+
+    $replacedString = strtolower($replacedString);
+
+    $replacedString = strtolower(str_replace("  ", " ", $replacedString));
+
+    return strtolower(str_replace(" ", "-", $replacedString));
+}
+
+/**
  * Generate a temporary password with $chars length
  *
  * @param int $chars
@@ -220,6 +239,25 @@ function end_section() : string
 function echo_safe(mixed $val) : void
 {
     echo htmlspecialchars($val);
+}
+
+/**
+ *
+ *
+ * @param string $futureDateString
+ * @return array|null
+ * @throws Exception
+ */
+function calculate_time_until(string $futureDateString) : ?array
+{
+    $now = new DateTime();
+    $futureDate = new DateTime($futureDateString);
+    $difference = $now->diff($futureDate);
+
+    if ($difference->invert) // date in past then return null
+        return null;
+
+    return [$difference->days, $difference->h, $difference->i, $difference->s];
 }
 
 /**
