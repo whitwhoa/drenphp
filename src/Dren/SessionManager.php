@@ -548,6 +548,14 @@ class SessionManager
         $this->session->data[$key] = $data;
     }
 
+    public function removeData(string $key) : void
+    {
+        if(!$this->sessionId || !isset($this->session->data[$key]))
+            return;
+
+        unset($this->session->data[$key]);
+    }
+
     public function getData(string $key) : mixed
     {
         if(!$this->sessionId || !isset($this->session->data[$key]))
