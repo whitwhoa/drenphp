@@ -15,26 +15,21 @@ use Dren\SessionManager;
 use Exception;
 use Mailgun\Model\MailingList\PagesResponse;
 
-class AuthService
+class CliAuthService implements AuthServiceInterface
 {
     protected string $privateDir;
     protected AppConfig $config;
-    private RememberIdManager $ridManager;
     private AccountDAO $accountDAO;
-    protected SessionManager $sm;
-    private ?LockableDataStore $ridLock;
+
 
     /**
      * @throws Exception
      */
-    public function __construct(string $privateDir, AppConfig $appConfig, Request $request, MySQLCon $db, SecurityUtility $su, SessionManager $sm)
+    public function __construct(string $privateDir, AppConfig $appConfig)
     {
         $this->privateDir = $privateDir;
         $this->config = $appConfig;
-        $this->ridManager = new RememberIdManager($appConfig, $request, $db, $su);
         $this->accountDAO = new AccountDAO();
-        $this->sm = $sm;
-        $this->ridLock = null;
     }
 
     /**
@@ -143,7 +138,7 @@ class AuthService
      */
     public function hasRememberId() : bool
     {
-        return $this->ridManager->hasRememberId();
+        return false;
     }
 
     /**
@@ -152,52 +147,7 @@ class AuthService
      * @return void
      * @throws Exception
      */
-    public function checkForRememberId(): void
-    {
-        // Check for remember_id token and attempt to re-authenticate the account if one is found.
-        $this->ridManager->setRememberId();
-
-        if(!$this->sm->getSessionId() && $this->ridManager->hasRememberId())
-        {
-            $rememberId = $this->ridManager->getRememberId();
-            if($rememberId === null)
-                throw new Exception("Remember Id cannot be null");
-
-            if($this->config->lockable_datastore_type === 'file')
-                $this->ridLock = new FileLockableDataStore($this->privateDir . '/storage/system/locks/rid');
-            // TODO: add logic for additional LockableDataStores
-
-            if($this->ridLock  === null)
-                throw new Exception("Unable to retrieve a remember id lock");
-
-            $this->ridLock->openLock($rememberId);
-            $this->ridLock->overwriteContents((string)time());
-
-            $existingToken = $this->ridManager->getRememberIdSession();
-
-            if($existingToken !== null && $this->sm->dataStoreExists($existingToken))
-            {
-                $this->sm->useSessionId($existingToken);
-            }
-            else
-            {
-                $account = $this->ridManager->getRememberIdAccount();
-                $this->sm->startNewSession($account->account_id, $account->username, $account->roles);
-
-                $this->onSessionUpgrade($account->account_id, $account->username, $account->roles);
-
-                $this->sm->persist();
-
-                $sid = $this->sm->getSessionId();
-                if($sid === null)
-                    throw new Exception("Session id cannot be null");
-
-                $this->ridManager->associateSessionIdWithRememberId($sid);
-            }
-
-            $this->ridLock?->closeLock();
-        }
-    }
+    public function checkForRememberId(): void {}
 
     /**
      * @param string $username
@@ -247,23 +197,7 @@ class AuthService
      * @return void
      * @throws Exception
      */
-    public function upgradeSession(string $username, string $ip, bool $remember = false) : void
-    {
-        $account = $this->accountDAO->getAccountByUsername($username);
-        $this->accountDAO->updateLastIp($account->id, $ip);
-
-        if($account === null)
-            throw new Exception('Account does not exist for provided username');
-
-        if($remember)
-            $this->ridManager->createNewRememberId($account->id);
-
-        $roles = $this->accountDAO->getRoles($account->id);
-
-        $this->sm->upgradeSession($account->id, $account->username, $roles);
-
-        $this->onSessionUpgrade($account->id, $account->username, $roles);
-    }
+    public function upgradeSession(string $username, string $ip, bool $remember = false) : void {}
 
     /**
      *
@@ -271,17 +205,6 @@ class AuthService
      * @return void
      * @throws Exception
      */
-    public function logout() : void
-    {
-        // if user has remember_id, remove it from database and send response to remove token from client
-        $this->ridManager->clearRememberId();
-
-        // send response to remove session_id from client, token stays on server until cleared by gc in case there
-        // are any concurrent requests in the queue, AND since we're currently blocking on this file we could delete
-        // it on unix systems and any concurrent requests waiting for locks would function just fine because of how
-        // unix handles file pointers, windows is a different story and I can see development on windows platform
-        // then deploying to linux being common.
-        $this->sm->removeClientSessionId();
-    }
+    public function logout() : void {}
 
 }

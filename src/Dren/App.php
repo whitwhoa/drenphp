@@ -4,7 +4,8 @@ declare(strict_types=1);
 namespace Dren;
 
 use Dren\Configs\AppConfig;
-use Dren\Services\AuthService;
+
+use Dren\Services\AuthServiceInterface;
 use Exception;
 use Dren\Exceptions\Forbidden;
 use Dren\Exceptions\NotFound;
@@ -25,8 +26,7 @@ class App
     private HttpClient $httpClient;
     private ?LockableDataStore $ipLock;
     //private ?LockableDataStore $ridLock;
-    private string $authServiceClass;
-    private ?AuthService $authService;
+    private ?AuthServiceInterface $authService;
 
     /**
      * @throws Exception
@@ -45,7 +45,10 @@ class App
     public static function initCli(string $privateDir) : ?App
     {
         if (self::$instance === null)
+        {
             self::$instance = new App($privateDir, '/storage/system/logs/job.log');
+            self::$instance->setCliAuthService();
+        }
 
         return self::$instance;
     }
@@ -76,8 +79,6 @@ class App
         Logger::init($this->privateDir . $logFile);
 
         $this->securityUtility = new SecurityUtility($this->config->encryption_key);
-        $this->request = null;
-        $this->sessionManager = null;
         $this->viewCompiler = new ViewCompiler($this->privateDir);
         $this->httpClient = new HttpClient($this->privateDir . '/storage/system/httpclient');
         $this->dbConMan = null;
@@ -85,24 +86,26 @@ class App
             $this->dbConMan = new MysqlConnectionManager($this->config->databases);
 
         $this->ipLock = null;
-        $this->authServiceClass = AuthService::class;
-        $this->authService = null;
-    }
 
-    public function setAuthServiceClass(string $authServiceClass) : void
-    {
-        $this->authServiceClass = $authServiceClass;
+        $this->request = null;
+        $this->sessionManager = null;
+        $this->authService = null;
     }
 
     /**
      * @throws Exception
      */
-    public function getAuthService() : AuthService
+    public function getAuthService() : AuthServiceInterface
     {
         if($this->authService === null)
             throw new Exception('Attempting to get AuthService before it has been initialized');
 
         return $this->authService;
+    }
+
+    public function setCliAuthService() : void
+    {
+        $this->authService = new $this->config->cli_auth_service($this->privateDir, $this->config);
     }
 
     public function executeHttp() : void
@@ -129,10 +132,8 @@ class App
 //                    $this->getDb(), $this->securityUtility, $this->sessionManager);
 
                 /** @phpstan-ignore-next-line */
-                $this->authService = new $this->authServiceClass($this->privateDir, $this->config, $this->request,
+                $this->authService = new $this->config->http_auth_service($this->privateDir, $this->config, $this->request,
                     $this->getDb(), $this->securityUtility, $this->sessionManager);
-
-
             }
 
             $this->authService?->checkForRememberId();

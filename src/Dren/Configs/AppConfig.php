@@ -12,6 +12,8 @@ class AppConfig
     public string $lockable_datastore_type;
     public string $jobs_lockable_datastore_type;
     public string $ip_param_name;
+    public string $http_auth_service;
+    public string $cli_auth_service;
     public SessionConfig $session;
     public QueueConfig $queue;
 
