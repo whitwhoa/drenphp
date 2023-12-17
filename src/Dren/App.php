@@ -220,24 +220,37 @@ class App
         }
         catch(Forbidden|NotFound|Unauthorized|UnprocessableEntity $e)
         {
+            $message = '';
+            switch ($e->getCode())
+            {
+                case 401:
+                    if($e->getMessage() === "")
+                        $message = 'You are not authorized to access this resource';
+                    else
+                        $message = $e->getMessage();
+                    break;
+                case 403:
+                    if($e->getMessage() === "")
+                        $message = 'This resource is forbidden';
+                    else
+                        $message = $e->getMessage();
+                    break;
+                case 404:
+                    if($e->getMessage() === "")
+                        $message = 'Resource does not exist';
+                    else
+                        $message = $e->getMessage();
+                    break;
+                case 422:
+                    if($e->getMessage() === "")
+                        $message = 'Unable to process request given provided parameters';
+                    else
+                        $message = $e->getMessage();
+                    break;
+            }
+
             if($this->request->isAjax() || $this->request->expectsJson())
             {
-                $message = '';
-                switch ($e->getCode())
-                {
-                    case 401:
-                        $message = 'You are not authorized to access this resource';
-                        break;
-                    case 403:
-                        $message = 'This resource is forbidden';
-                        break;
-                    case 404:
-                        $message = 'Resource does not exist';
-                        break;
-                    case 422:
-                        $message = 'Unable to process request given provided parameters';
-                }
-
                 (new Response())->setCode($e->getCode())->json([
                     'message' => $message
                 ])->send();
@@ -245,7 +258,7 @@ class App
             else
             {
                 (new Response())->html($this->viewCompiler->compile('errors.' . $e->getCode(),
-                    ['detailedMessage' => $e->getMessage()]))->send();
+                    ['detailedMessage' => $message]))->send();
             }
 
             $this->finalizeRequest();
