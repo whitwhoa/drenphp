@@ -101,4 +101,38 @@ class SecurityUtility
         return base64_encode($encryptedData . '::' . $iv);
     }
 
+    /**
+     *
+     *
+     * @param string $encryptedStringWithIv
+     * @param string $cipherMethod
+     * @return string|null
+     */
+    public function decryptString(string $encryptedStringWithIv, string $cipherMethod = 'AES-256-CBC'): ?string
+    {
+        try
+        {
+            // Split the encrypted token and signature and the IV
+            $parts = explode('::', base64_decode($encryptedStringWithIv), 2);
+
+            // If there aren't two parts, something's wrong, so return null
+            if (count($parts) < 2)
+                return null;
+
+            list($encryptedString, $iv) = $parts;
+
+            // Decrypt the token and the signature
+            $decryptedString = openssl_decrypt($encryptedString, $cipherMethod, $this->encryptionKey, 0, $iv);
+
+            if ($decryptedString === false)
+                return null; // Decryption failed, probably because the encrypted data was tampered with
+
+            return $decryptedString;
+        }
+        catch (Exception $e)
+        {
+            return null;
+        }
+    }
+
 }
