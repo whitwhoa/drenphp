@@ -37,11 +37,11 @@ class SecurityUtility
                 return null; // Decryption failed, probably because the encrypted data was tampered with
 
             // Split the token and the signature
-            $token = substr($tokenAndSignature, 0, $tokenLength);
-            $receivedSignature = substr($tokenAndSignature, $tokenLength);
+            $token = substr($tokenAndSignature, 0, 32);
+            $receivedSignature = substr($tokenAndSignature, 32);
 
             // Generate the expected signature
-            $expectedSignature = substr(hash_hmac('sha256', $token, $this->encryptionKey), 0, $tokenLength);
+            $expectedSignature = substr(hash_hmac('sha256', $token, $this->encryptionKey), 0, 8);
 
             // Verify the signature
             if (hash_equals($expectedSignature, $receivedSignature))
@@ -56,24 +56,16 @@ class SecurityUtility
     }
 
     /**
-     * @param string $cipherMethod
-     * @param int $tokenLength
      * @return string
      * @throws Exception
      */
-    public function generateSignedToken(string $cipherMethod = 'AES-256-CBC', int $tokenLength = 16): string
+    public function generateSignedToken(): string
     {
-        if ($tokenLength <= 0)
-            throw new Exception("Invalid token length provided.");
-
-        $lengthInt = (int)($tokenLength / 2);
-
-        // Generate a random string of specified length
-        assert($lengthInt > 0); //phpstan freaks out without this, even though we've check everything already
-        $token = bin2hex(random_bytes($lengthInt));
+        // Generate a token
+        $token = bin2hex(random_bytes(16));
 
         // Generate a signature
-        $signature = substr(hash_hmac('sha256', $token, $this->encryptionKey), 0, $tokenLength);
+        $signature = substr(hash_hmac('sha256', $token, $this->encryptionKey), 0, 8);
 
         // Combine the token and the signature
         return $token . $signature;
