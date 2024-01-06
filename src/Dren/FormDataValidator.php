@@ -586,6 +586,17 @@ abstract class FormDataValidator
     /**
      * @param array<int, mixed> $params
      */
+    private function alpha_numeric(array $params) : void
+    {
+        if(ctype_alnum($params[1]))
+            return;
+
+        $this->setErrorMessage('alpha_numeric', $params[0], $params[0] . ' must be alpha numeric');
+    }
+
+    /**
+     * @param array<int, mixed> $params
+     */
     private function min_char(array $params) : void
     {
         $valString = (string)$params[1];
