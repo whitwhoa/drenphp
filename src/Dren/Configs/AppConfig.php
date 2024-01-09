@@ -11,7 +11,8 @@ class AppConfig
     public string $encryption_key;
     public string $lockable_datastore_type;
     public string $jobs_lockable_datastore_type;
-    public string $ip_param_name;
+    /** @var array<string> */
+    public array $ip_keys;
     public string $http_auth_service;
     public string $cli_auth_service;
     public SessionConfig $session;

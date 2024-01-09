@@ -112,7 +112,7 @@ class App
     {
         try
         {
-            $this->request = new Request($this->config->allowed_file_upload_mimes, $this->config->ip_param_name);
+            $this->request = new Request($this->config->allowed_file_upload_mimes, $this->config->ip_keys);
             $this->sessionManager = new SessionManager($this->config, $this->securityUtility);
             $this->viewCompiler = new ViewCompiler($this->privateDir, $this->sessionManager);
 

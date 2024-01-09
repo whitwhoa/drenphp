@@ -32,13 +32,14 @@ class Request
 
     /**
      * @param array<string, string> $am
-     * @param string $ipParamName
+     * @param array<string> $ipKeys
+     * @throws Exception
      */
-    public function __construct(array $am, string $ipParamName)
+    public function __construct(array $am, array $ipKeys)
     {
         $this->allowableMimes = $am;
 
-        $this->setIp($ipParamName);
+        $this->setIp($ipKeys);
         $this->setMethod();
         $this->setURI();
         $this->setGetData();
@@ -224,9 +225,20 @@ class Request
         $this->postData = (object)$_POST;
     }
 
-    private function setIp(string $ipParamName) : void
+    /**
+     * @param array<string> $ipKeys
+     * @return void
+     */
+    private function setIp(array $ipKeys) : void
     {
-        $this->ip = $_SERVER[$ipParamName];
+        for($i = 0; $i < count($ipKeys); $i++)
+        {
+            if(isset($_SERVER[$ipKeys[$i]]))
+            {
+                $this->ip = $_SERVER[$ipKeys[$i]];
+                return;
+            }
+        }
     }
 
     private function setFiles() : void
