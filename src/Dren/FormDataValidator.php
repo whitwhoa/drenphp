@@ -790,6 +790,15 @@ abstract class FormDataValidator
     }
 
     /**
+     * @param array<int, mixed> $params
+     */
+    private function state_abbr(array $params) : void
+    {
+        if(!array_key_exists(strtoupper($params[1]), get_states()))
+            $this->setErrorMessage('state_abbr', $params[0], $params[0] . ' must be a valid state abbreviation');
+    }
+
+    /**
      * Insure date value of $params[1] is greater than date value of $params[2]
      *
      * if $params[2] is not a key within $this->requestData, attempt to parse it as date string and run the comparison
