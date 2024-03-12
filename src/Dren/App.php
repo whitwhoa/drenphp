@@ -257,8 +257,12 @@ class App
             }
             else
             {
-                (new Response())->html($this->viewCompiler->compile('errors.' . $e->getCode(),
+//                (new Response())->html($this->viewCompiler->compile('errors.' . $e->getCode(),
+//                    ['detailedMessage' => $message]))->send();
+
+                (new Response())->setCode($e->getCode())->html($this->viewCompiler->compile('errors.' . $e->getCode(),
                     ['detailedMessage' => $message]))->send();
+
             }
 
             $this->finalizeRequest();
