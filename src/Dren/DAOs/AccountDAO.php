@@ -41,6 +41,7 @@ class AccountDAO extends DAO
 
                 $roleIds = $this->db
                     ->query($q2, $roles)
+                    ->singleAsObj()
                     ->exec();
 
                 foreach(json_decode($roleIds->ids) as $roleId)
