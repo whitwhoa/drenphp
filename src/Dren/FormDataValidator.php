@@ -913,11 +913,62 @@ abstract class FormDataValidator
                     if($params[1] > $compVal)
                         return;
             }
-
-
         }
 
         $this->setErrorMessage('number_greater_than', $params[0], $params[0] . ' must be a number greater than the number provided for: ' . $params[2]);
+    }
+
+    /**
+     *
+     * @param array<int, mixed> $params
+     */
+    private function number_greater_than_or_equal_to(array $params) : void
+    {
+        if(is_numeric($params[1]))
+        {
+            $compVal = null;
+
+            // user provided ,* meaning they want to compare this value with the value of the element at the same array index level
+            if(isset($params[3]) && $params[3] === '*')
+            {
+                $keys = $this->extractFieldsForErrorMessageMatching($params[0]);
+
+                $keys[count($keys) - 1] = $params[2];
+
+                $currentElement = $this->requestData;
+
+                $found = true;
+                foreach($keys as $key)
+                {
+                    if(isset($currentElement[$key]))
+                        $currentElement = $currentElement[$key];
+                    else
+                        $found = false;
+                }
+
+                if($found && $params[1] >= $currentElement)
+                    return;
+            }
+            else
+            {
+                if(!array_key_exists($params[2], $this->requestData))
+                {
+                    if(is_numeric($params[2]))
+                        $compVal = $params[2];
+                }
+                else
+                {
+                    if(is_numeric($this->requestData[$params[2]]))
+                        $compVal = $this->requestData[$params[2]];
+                }
+
+                if($compVal !== null)
+                    if($params[1] >= $compVal)
+                        return;
+            }
+        }
+
+        $this->setErrorMessage('number_greater_than_or_equal_to', $params[0], $params[0] . ' must be a number greater than or equal to the number provided for: ' . $params[2]);
     }
 
     /**
@@ -968,11 +1019,62 @@ abstract class FormDataValidator
                     if($params[1] < $compVal)
                         return;
             }
-
-
         }
 
         $this->setErrorMessage('number_less_than', $params[0], $params[0] . ' must be a number less than the number provided for: ' . $params[2]);
+    }
+
+    /**
+     *
+     * @param array<int, mixed> $params
+     */
+    private function number_less_than_or_equal_to(array $params) : void
+    {
+        if(is_numeric($params[1]))
+        {
+            $compVal = null;
+
+            // user provided ,* meaning they want to compare this value with the value of the element at the same array index level
+            if(isset($params[3]) && $params[3] === '*')
+            {
+                $keys = $this->extractFieldsForErrorMessageMatching($params[0]);
+
+                $keys[count($keys) - 1] = $params[2];
+
+                $currentElement = $this->requestData;
+
+                $found = true;
+                foreach($keys as $key)
+                {
+                    if(isset($currentElement[$key]))
+                        $currentElement = $currentElement[$key];
+                    else
+                        $found = false;
+                }
+
+                if($found && $params[1] <= $currentElement)
+                    return;
+            }
+            else
+            {
+                if(!array_key_exists($params[2], $this->requestData))
+                {
+                    if(is_numeric($params[2]))
+                        $compVal = $params[2];
+                }
+                else
+                {
+                    if(is_numeric($this->requestData[$params[2]]))
+                        $compVal = $this->requestData[$params[2]];
+                }
+
+                if($compVal !== null)
+                    if($params[1] <= $compVal)
+                        return;
+            }
+        }
+
+        $this->setErrorMessage('number_less_than_or_equal_to', $params[0], $params[0] . ' must be a number less than or equal to the number provided for: ' . $params[2]);
     }
 
     /**
