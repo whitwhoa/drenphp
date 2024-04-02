@@ -273,6 +273,9 @@ function centerImageIn16by9(string $sourcePath, string $targetPath) : void
 {
     // Target 16:9 aspect ratio
     $targetRatio = 16 / 9;
+    // Minimum dimensions
+    $minWidth = 512;
+    $minHeight = 288;
 
     // Load the original image
     $sourceImage = imagecreatefromjpeg($sourcePath);
@@ -281,17 +284,20 @@ function centerImageIn16by9(string $sourcePath, string $targetPath) : void
     $originalRatio = $originalWidth / $originalHeight;
 
     // Determine the size of the 16:9 rectangle
-    if ($originalRatio >= $targetRatio)
-    {
+    if ($originalRatio >= $targetRatio) {
         // If the image is wider or equal to 16:9, use its width to determine the rectangle's size
         $finalWidth = $originalWidth;
         $finalHeight = (int)round($originalWidth / $targetRatio);
-    }
-    else
-    {
+    } else {
         // If the image is taller, use its height to determine the rectangle's size
         $finalHeight = $originalHeight;
         $finalWidth = (int)round($originalHeight * $targetRatio);
+    }
+
+    // Ensure minimum dimensions
+    if ($finalWidth < $minWidth || $finalHeight < $minHeight) {
+        $finalWidth = $minWidth;
+        $finalHeight = $minHeight;
     }
 
     // Create a new image with the calculated dimensions and fill it with white
@@ -302,6 +308,12 @@ function centerImageIn16by9(string $sourcePath, string $targetPath) : void
     // Calculate x and y positions to center the original image
     $x = (int)(($finalWidth - $originalWidth) / 2); // Cast to int
     $y = (int)(($finalHeight - $originalHeight) / 2); // Cast to int
+
+    // Adjust original image dimensions if larger than the canvas
+    if ($originalWidth > $finalWidth || $originalHeight > $finalHeight) {
+        $originalWidth = $finalWidth;
+        $originalHeight = $finalHeight;
+    }
 
     // Place the original image in the center of the 16:9 canvas
     imagecopy($finalImage, $sourceImage, $x, $y, 0, 0, $originalWidth, $originalHeight);
