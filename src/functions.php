@@ -285,13 +285,13 @@ function centerImageIn16by9(string $sourcePath, string $targetPath) : void
     {
         // If the image is wider or equal to 16:9, use its width to determine the rectangle's size
         $finalWidth = $originalWidth;
-        $finalHeight = round($originalWidth / $targetRatio);
+        $finalHeight = (int)round($originalWidth / $targetRatio);
     }
     else
     {
         // If the image is taller, use its height to determine the rectangle's size
         $finalHeight = $originalHeight;
-        $finalWidth = round($originalHeight * $targetRatio);
+        $finalWidth = (int)round($originalHeight * $targetRatio);
     }
 
     // Create a new image with the calculated dimensions and fill it with white
