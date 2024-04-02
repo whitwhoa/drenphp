@@ -261,6 +261,60 @@ function calculate_time_until(string $futureDateString) : ?array
 }
 
 /**
+ * Takes in an input path to an image, and creates a 16x9 wrapper around that image, then
+ * places the image in the center of the wrapper, insuring that the output $targetPath is
+ * always 16:9
+ *
+ * @param string $sourcePath
+ * @param string $targetPath
+ * @return void
+ */
+function centerImageIn16by9(string $sourcePath, string $targetPath) : void
+{
+    // Target 16:9 aspect ratio
+    $targetRatio = 16 / 9;
+
+    // Load the original image
+    $sourceImage = imagecreatefromjpeg($sourcePath);
+    $originalWidth = imagesx($sourceImage);
+    $originalHeight = imagesy($sourceImage);
+    $originalRatio = $originalWidth / $originalHeight;
+
+    // Determine the size of the 16:9 rectangle
+    if ($originalRatio >= $targetRatio)
+    {
+        // If the image is wider or equal to 16:9, use its width to determine the rectangle's size
+        $finalWidth = $originalWidth;
+        $finalHeight = round($originalWidth / $targetRatio);
+    }
+    else
+    {
+        // If the image is taller, use its height to determine the rectangle's size
+        $finalHeight = $originalHeight;
+        $finalWidth = round($originalHeight * $targetRatio);
+    }
+
+    // Create a new image with the calculated dimensions and fill it with white
+    $finalImage = imagecreatetruecolor($finalWidth, $finalHeight);
+    $white = imagecolorallocate($finalImage, 255, 255, 255);
+    imagefill($finalImage, 0, 0, $white);
+
+    // Calculate x and y positions to center the original image
+    $x = ($finalWidth - $originalWidth) / 2;
+    $y = ($finalHeight - $originalHeight) / 2;
+
+    // Place the original image in the center of the 16:9 canvas
+    imagecopy($finalImage, $sourceImage, $x, $y, 0, 0, $originalWidth, $originalHeight);
+
+    // Save the final image
+    imagejpeg($finalImage, $targetPath);
+
+    // Clean up
+    imagedestroy($sourceImage);
+    imagedestroy($finalImage);
+}
+
+/**
  * Return an array of all states where keys are 2 letter
  * abbreviations and values are whole names
  *
