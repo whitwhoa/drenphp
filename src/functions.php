@@ -300,8 +300,8 @@ function centerImageIn16by9(string $sourcePath, string $targetPath) : void
     imagefill($finalImage, 0, 0, $white);
 
     // Calculate x and y positions to center the original image
-    $x = ($finalWidth - $originalWidth) / 2;
-    $y = ($finalHeight - $originalHeight) / 2;
+    $x = (int)(($finalWidth - $originalWidth) / 2); // Cast to int
+    $y = (int)(($finalHeight - $originalHeight) / 2); // Cast to int
 
     // Place the original image in the center of the 16:9 canvas
     imagecopy($finalImage, $sourceImage, $x, $y, 0, 0, $originalWidth, $originalHeight);
