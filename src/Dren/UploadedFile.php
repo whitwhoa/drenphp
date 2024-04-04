@@ -117,6 +117,11 @@ class UploadedFile
         return $this->allowableMimes[$this->getMime()];
     }
 
+    public function getTmpPath() : string
+    {
+        return $this->tmpPath;
+    }
+
     public function storeAs(string $path, string $filename) : void
     {
         if(!is_dir($path))
