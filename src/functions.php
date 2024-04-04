@@ -269,59 +269,81 @@ function calculate_time_until(string $futureDateString) : ?array
  * @param string $targetPath
  * @return void
  */
-function centerImageIn16by9(string $sourcePath, string $targetPath) : void
+function imageTo16x9PNG(string $sourcePath, string $targetPath): void
 {
     // Target 16:9 aspect ratio
     $targetRatio = 16 / 9;
     // Minimum dimensions
     $minWidth = 512;
     $minHeight = 288;
+    // Maximum dimensions
+    $maxWidth = 960;
+    $maxHeight = 540;
 
-    // Load the original image
-    $sourceImage = imagecreatefromjpeg($sourcePath);
+    // Determine the image type
+    $imageType = exif_imagetype($sourcePath);
+    switch ($imageType) {
+        case IMAGETYPE_JPEG:
+            $sourceImage = imagecreatefromjpeg($sourcePath);
+            break;
+        case IMAGETYPE_PNG:
+            $sourceImage = imagecreatefrompng($sourcePath);
+            break;
+        case IMAGETYPE_GIF:
+            $sourceImage = imagecreatefromgif($sourcePath);
+            break;
+        case IMAGETYPE_BMP:
+            $sourceImage = imagecreatefrombmp($sourcePath);
+            break;
+        case IMAGETYPE_WEBP:
+            $sourceImage = imagecreatefromwebp($sourcePath);
+            break;
+        default:
+            throw new Exception('Unsupported image type.');
+    }
+
     $originalWidth = imagesx($sourceImage);
     $originalHeight = imagesy($sourceImage);
     $originalRatio = $originalWidth / $originalHeight;
 
-    // Determine the size of the 16:9 rectangle
-    if ($originalRatio >= $targetRatio) {
-        // If the image is wider or equal to 16:9, use its width to determine the rectangle's size
-        $finalWidth = $originalWidth;
-        $finalHeight = (int)round($originalWidth / $targetRatio);
+    // Determine scaling factor such that image fits within max dimensions while maintaining aspect ratio
+    $scale = min($maxWidth / $originalWidth, $maxHeight / $originalHeight, 1);
+    $scaledWidth = (int)($originalWidth * $scale);
+    $scaledHeight = (int)($originalHeight * $scale);
+
+    // Adjust canvas size to maintain target ratio, considering scaled dimensions
+    if ($scaledWidth / $scaledHeight > $targetRatio) {
+        // Canvas height is adjusted to maintain target ratio
+        $canvasHeight = (int)($scaledWidth / $targetRatio);
+        $canvasWidth = $scaledWidth;
     } else {
-        // If the image is taller, use its height to determine the rectangle's size
-        $finalHeight = $originalHeight;
-        $finalWidth = (int)round($originalHeight * $targetRatio);
+        // Canvas width is adjusted to maintain target ratio
+        $canvasWidth = (int)($scaledHeight * $targetRatio);
+        $canvasHeight = $scaledHeight;
     }
 
-    // Ensure minimum dimensions
-    if ($finalWidth < $minWidth || $finalHeight < $minHeight) {
-        $finalWidth = $minWidth;
-        $finalHeight = $minHeight;
-    }
+    // Ensure canvas dimensions meet the minimum size requirements
+    $canvasWidth = max($canvasWidth, $minWidth);
+    $canvasHeight = max($canvasHeight, $minHeight);
 
-    // Create a new image with the calculated dimensions and fill it with white
-    $finalImage = imagecreatetruecolor($finalWidth, $finalHeight);
-    $white = imagecolorallocate($finalImage, 255, 255, 255);
-    imagefill($finalImage, 0, 0, $white);
+    // Create the final image with transparent background
+    $finalImage = imagecreatetruecolor($canvasWidth, $canvasHeight);
 
-    // Calculate x and y positions to center the original image
-    $x = (int)(($finalWidth - $originalWidth) / 2); // Cast to int
-    $y = (int)(($finalHeight - $originalHeight) / 2); // Cast to int
+    // Set transparency
+    imagesavealpha($finalImage, true);
+    $transparent = imagecolorallocatealpha($finalImage, 0, 0, 0, 127);
+    imagefill($finalImage, 0, 0, $transparent);
 
-    // Adjust original image dimensions if larger than the canvas
-    if ($originalWidth > $finalWidth || $originalHeight > $finalHeight) {
-        $originalWidth = $finalWidth;
-        $originalHeight = $finalHeight;
-    }
+    // Calculate x and y positions to center the scaled image on the canvas
+    $x = (int)(($canvasWidth - $scaledWidth) / 2);
+    $y = (int)(($canvasHeight - $scaledHeight) / 2);
 
-    // Place the original image in the center of the 16:9 canvas
-    imagecopy($finalImage, $sourceImage, $x, $y, 0, 0, $originalWidth, $originalHeight);
+    // Resize and place the original image in the center of the final image
+    imagecopyresampled($finalImage, $sourceImage, $x, $y, 0, 0, $scaledWidth, $scaledHeight, $originalWidth, $originalHeight);
 
-    // Save the final image
-    imagejpeg($finalImage, $targetPath);
+    // Save the final image as PNG
+    imagepng($finalImage, $targetPath);
 
-    // Clean up
     imagedestroy($sourceImage);
     imagedestroy($finalImage);
 }
