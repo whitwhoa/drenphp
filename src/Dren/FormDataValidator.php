@@ -508,7 +508,7 @@ abstract class FormDataValidator
         return null;
     }
 
-    private function setErrorMessage(string $method, string $field, string $defaultMsg) : void
+    protected function setErrorMessage(string $method, string $field, string $defaultMsg) : void
     {
         $customMessageKey = $this->findErrorMessage($field, $method);
 
